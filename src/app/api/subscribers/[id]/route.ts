@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { computeSubscriberFields } from "@/lib/rcs";
 import { getCurrentUser } from "@/lib/session";
+import { recordSyncOutbox } from "@/lib/sync-outbox";
 
 export async function GET(
   _req: NextRequest,
@@ -124,6 +125,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       },
     });
 
+    await recordSyncOutbox({
+      clubId: existing.clubId,
+      modelName: "subscriber",
+      recordId: subscriber.id,
+      operation: "update",
+      payload: subscriber,
+    });
+
     const fields = computeSubscriberFields(subscriber);
     return NextResponse.json({ subscriber: { ...subscriber, ...fields } });
   } catch (error) {
@@ -154,6 +163,15 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     });
 
     await db.subscriber.delete({ where: { id } });
+
+    await recordSyncOutbox({
+      clubId: sub.clubId,
+      modelName: "subscriber",
+      recordId: sub.id,
+      operation: "delete",
+      payload: { id: sub.id, clubId: sub.clubId },
+    });
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("DELETE /api/subscribers/[id] error:", error);

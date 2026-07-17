@@ -26,6 +26,7 @@ model Club {
   phone           String                            // رقم الهاتف
   email           String   @unique                  // البريد الإلكتروني
   status          String   @default("pending")      // pending/active/expired/disabled/suspended
+  syncApiKey      String?  @unique                   // مفتاح المزامنة بين الفرع الأوفلاين والسحابة
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -40,6 +41,7 @@ model Club {
   notifications   Notification[]
   poolClosures    PoolClosure[]
   compensations   Compensation[]
+  syncOutbox      SyncOutbox[]
   settings        Setting[]
   cashierPins     CashierPin[]
   subscriptionTypes SubscriptionType[]
@@ -124,6 +126,7 @@ model Subscriber {
   phone           String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  deletedAt       DateTime?                             // حذف ناعم — يبقى محفوظاً للمزامنة
 
   renewals        Renewal[]
   attendances     Attendance[]
@@ -540,4 +543,31 @@ model Compensation {
   @@index([clubId, status])
   @@index([clubId, subscriberId])
   @@index([closureId])
+}
+
+// ═══════════════════════════════════════════════════════════
+// SYNC ENGINE (المزامنة بين الفرع الأوفلاين والسحابة)
+// ═══════════════════════════════════════════════════════════
+model SyncOutbox {
+  id          String   @id @default(cuid())
+  clubId      String
+  club        Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  modelName   String   // "subscriber" | "payment" | "renewal" | "attendance" | "compensation" ...
+  recordId    String
+  operation   String   // "create" | "update" | "delete"
+  payload     String   // JSON.stringify() للسجل كامل وقت الحفظ
+
+  createdAt   DateTime @default(now())
+  synced      Boolean  @default(false)
+  syncedAt    DateTime?
+
+  @@index([clubId, synced])
+}
+
+model SyncMeta {
+  id            String   @id @default("singleton")
+  lastPullAt    DateTime?
+  deviceId      String   @default(cuid())
+  updatedAt     DateTime @updatedAt
 }

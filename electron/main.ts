@@ -71,7 +71,6 @@ function startLocalServer() {
       }
 
       // ضبط متغيرات البيئة لـ SQLite محلي
-      ensureDatabaseExists();
       const dbPath = getDatabasePath();
       const env = {
         ...process.env,
@@ -165,41 +164,6 @@ async function checkLocalServer() {
  */
 function getDatabasePath() {
   return path.join(app.getPath("userData"), "rcs-club.db");
-}
-
-/**
- * مسار قاعدة البيانات "القالب" المرفقة مع التطبيق — نسخة فارغة من
- * قاعدة SQLite لكنها تحتوي على كل الجداول (تم إنشاؤها وقت البناء
- * عبر build-setup.* باستعمال `prisma db push`).
- * موجودة خارج asar ضمن extraResources (انظر electron-builder.yml).
- */
-function getTemplateDatabasePath() {
-  return path.join(process.resourcesPath, "rcs-club-template.db");
-}
-
-/**
- * أول تشغيل للتطبيق: قاعدة بيانات المستخدم (rcs-club.db) غير موجودة بعد.
- * ننسخ القالب الجاهز (بكل الجداول) إليها بدل تركها ملفاً فارغاً بلا جداول —
- * وإلا فشل الخادم المحلي في أول استعلام لأن الجداول غير موجودة.
- * إذا كانت قاعدة المستخدم موجودة مسبقاً (تشغيل سابق)، لا نلمسها إطلاقاً
- * حتى لا نفقد بياناته.
- */
-function ensureDatabaseExists() {
-  const dbPath = getDatabasePath();
-  if (fs.existsSync(dbPath)) {
-    return; // المستخدم لديه بيانات فعلية بالفعل — لا تُعدّل شيئاً
-  }
-  const templatePath = getTemplateDatabasePath();
-  try {
-    if (fs.existsSync(templatePath)) {
-      fs.copyFileSync(templatePath, dbPath);
-      console.log("[Database] تم إنشاء قاعدة بيانات جديدة من القالب:", dbPath);
-    } else {
-      console.warn("[Database] ⚠️ لم يتم العثور على قاعدة القالب — سيتم إنشاء ملف فارغ (بدون جداول)");
-    }
-  } catch (e) {
-    console.error("[Database] فشل نسخ قاعدة القالب:", e);
-  }
 }
 
 /**

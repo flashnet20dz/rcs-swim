@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session";
-import { expireStaleCompensations } from "@/lib/compensation-utils";
 
 /**
  * GET /api/pool-closures
@@ -15,9 +14,6 @@ export async function GET(req: NextRequest) {
     }
 
     const clubFilter = currentUser.role === "superadmin" ? {} : { clubId: currentUser.clubId! };
-
-    // تحديث تلقائي لحالة التعويضات المتأخرة قبل عرضها ضمن كل إغلاق
-    await expireStaleCompensations(currentUser.role === "superadmin" ? undefined : currentUser.clubId!);
 
     const closures = await db.poolClosure.findMany({
       where: clubFilter,

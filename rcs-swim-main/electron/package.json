@@ -1,8 +1,0 @@
-{
-  "name": "rcs-club-desktop",
-  "version": "1.0.0",
-  "description": "نادي RCS — منظومة إدارة الاشتراكات والسباحة",
-  "main": "electron/main.js",
-  "author": "نادي RCS",
-  "license": "MIT"
-}

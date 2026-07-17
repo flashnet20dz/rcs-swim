@@ -39,32 +39,15 @@ if not exist "node_modules" (
     call npm install
 )
 
-:: التبديل إلى مخطط SQLite (Desktop = قاعدة بيانات محلية أوفلاين)
-:: مهم: بدون هذا، Prisma Client يُولَّد لـ PostgreSQL والتطبيق يفشل بدون إنترنت
-echo  🔧 تجهيز مخطط SQLite (Offline) + توليد Prisma client...
-call node scripts/sync-sqlite-schema.js
-copy /Y "prisma\schema.prisma" "prisma\.schema.prisma.build-backup" >nul
-copy /Y "prisma\schema.sqlite.prisma" "prisma\schema.prisma" >nul 2>nul
+:: Generate Prisma client
+echo  🔧 توليد Prisma client...
 call npx prisma generate
-
-:: إنشاء قاعدة بيانات SQLite "قالب" (كل الجداول، بدون بيانات)
-:: هذا الملف يُنسخ لمجلد بيانات المستخدم عند أول تشغيل بدل ملف فارغ بلا جداول
-echo  🗄️  إنشاء قاعدة بيانات SQLite القالب...
-if not exist "resources" mkdir resources
-del "prisma\rcs-club-template.db" 2>nul
-set DATABASE_URL=file:%cd%\prisma\rcs-club-template.db
-call npx prisma db push --skip-generate --accept-data-loss
-copy /Y "prisma\rcs-club-template.db" "resources\rcs-club-template.db" >nul
-del "prisma\rcs-club-template.db" >nul
-echo  ✅ قاعدة القالب جاهزة: resources\rcs-club-template.db
 
 :: Build Next.js
 echo  🏗️  بناء Next.js...
 call npm run build
 if %errorlevel% neq 0 (
     echo  ❌ فشل بناء Next.js
-    copy /Y "prisma\.schema.prisma.build-backup" "prisma\schema.prisma" >nul
-    del "prisma\.schema.prisma.build-backup" >nul
     pause
     exit /b 1
 )
@@ -80,18 +63,8 @@ call npx electron-builder --win nsis
 if %errorlevel% neq 0 (
     echo  ❌ فشل بناء electron-builder
     echo  جرّب: npx electron-builder --win portable
-    copy /Y "prisma\.schema.prisma.build-backup" "prisma\schema.prisma" >nul
-    del "prisma\.schema.prisma.build-backup" >nul
     pause
     exit /b 1
-)
-
-:: استعادة مخطط PostgreSQL الأصلي + إعادة توليد العميل لنسخة الويب
-if exist "prisma\.schema.prisma.build-backup" (
-    copy /Y "prisma\.schema.prisma.build-backup" "prisma\schema.prisma" >nul
-    del "prisma\.schema.prisma.build-backup" >nul
-    echo  ↩️  تمت استعادة schema.prisma الأصلي ^(PostgreSQL^)
-    call npx prisma generate >nul
 )
 
 echo.

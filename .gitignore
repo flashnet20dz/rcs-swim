@@ -65,10 +65,3 @@ dist/
 build-electron/
 dist/
 tool-results/
-
-# Temporary backup created during desktop (SQLite) build — see build-setup.*
-prisma/.schema.prisma.build-backup
-
-# Generated at desktop-build time by build-setup.* (SQLite template DB)
-resources/rcs-club-template.db
-prisma/rcs-club-template.db

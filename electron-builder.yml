@@ -50,15 +50,10 @@ files:
   - "!installer*.nsi"
   - "!electron/*.ts"
 
-# ═══ extraResources (خارج asar) ═══
+# ═══ extraResources (خارج asar — للأيقونة فقط) ═══
 extraResources:
   - from: "public/images/icon.ico"
     to: "icon.ico"
-  # قاعدة بيانات SQLite "قالب" فارغة لكن بكل الجداول جاهزة —
-  # يُنشئها build-setup.* عبر `prisma db push` قبل هذه الخطوة.
-  # تُنسخ لمجلد بيانات المستخدم عند أول تشغيل (انظر ensureDatabaseExists في main.ts)
-  - from: "resources/rcs-club-template.db"
-    to: "rcs-club-template.db"
 
 # ════════════ Windows Configuration ════════════
 win:

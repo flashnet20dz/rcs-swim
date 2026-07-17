@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session";
-import { expireStaleCompensations } from "@/lib/compensation-utils";
 
 /**
  * GET /api/compensations?status=pending&subscriberId=...
@@ -17,9 +16,6 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const status = url.searchParams.get("status");
     const subscriberId = url.searchParams.get("subscriberId");
-
-    // تحديث تلقائي: أي تعويض متأخر (فات موعده أو انتظر طويلاً) يتحول لـ "منتهي" قبل عرض القائمة
-    await expireStaleCompensations(currentUser.role === "superadmin" ? undefined : currentUser.clubId!);
 
     const clubFilter = currentUser.role === "superadmin" ? {} : { clubId: currentUser.clubId! };
     const where: Record<string, unknown> = { ...clubFilter };

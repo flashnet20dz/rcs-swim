@@ -39,6 +39,12 @@ const DEFAULT_SETTINGS = {
   // قاعدة البيانات
   databaseType: "sqlite",
   lastBackupDate: null,
+
+  // المزامنة مع السحابة (Sync)
+  syncApiKey: "",
+  syncEnabled: true,
+  lastSyncStatus: "idle",
+  lastSyncAt: null,
 };
 
 let cachedSettings = null;

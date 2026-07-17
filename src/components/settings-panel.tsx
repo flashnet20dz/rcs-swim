@@ -5,6 +5,7 @@ import {
   Settings as SettingsIcon, Save, Loader2, Building, Phone, MessageSquare,
   DollarSign, Clock, Users, Plus, Trash2, Type, Calendar, Timer,
   LayoutTemplate, Sparkles, Upload, ImageIcon, Palette, Pencil, FileText, Monitor,
+  RefreshCw, Key, Copy, Eye, EyeOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -118,37 +119,6 @@ export function SettingsPanel() {
               <div className="space-y-1.5">
                 <Label className="text-sm flex items-center gap-1.5"><DollarSign className="h-3 w-3" /> العملة</Label>
                 <Input value={settings.currency || "دج"} onChange={(e) => setSettings({ ...settings, currency: e.target.value })} className="h-10" placeholder="دج" />
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-border/60 p-3 mt-3 space-y-3">
-              <h4 className="text-sm font-bold flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" /> انتهاء صلاحية التعويضات تلقائياً</h4>
-              <p className="text-xs text-muted-foreground">
-                إذا لم يُحدَّد للمنخرط حصة تعويضية بديلة، أو حُدِّدت ولم يحضرها، يتحول التعويض تلقائياً إلى «منتهية».
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-sm">مهلة التعويض المعلّق (بالأيام)</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={settings.compensationPendingExpiryDays || "30"}
-                    onChange={(e) => setSettings({ ...settings, compensationPendingExpiryDays: e.target.value })}
-                    className="h-10"
-                  />
-                  <p className="text-[11px] text-muted-foreground">إن لم تُحدَّد حصة بديلة خلال هذه المدة من تاريخ الإغلاق، يصبح التعويض منتهياً.</p>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-sm">مهلة السماح بعد الحصة المحدَّدة (بالأيام)</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={settings.compensationScheduledGraceDays || "2"}
-                    onChange={(e) => setSettings({ ...settings, compensationScheduledGraceDays: e.target.value })}
-                    className="h-10"
-                  />
-                  <p className="text-[11px] text-muted-foreground">إن فات موعد الحصة التعويضية المحدَّدة ولم يُسجَّل حضور المنخرط خلال هذه المدة، تنتهي صلاحيتها.</p>
-                </div>
               </div>
             </div>
           </TabsContent>
@@ -428,6 +398,7 @@ export function SettingsPanel() {
                 إعدادات خاصة بنسخة Desktop (Electron) — مسار الملفات، النسخ الاحتياطي، الطباعة، الإشعارات، والتشغيل التلقائي.
               </p>
             </div>
+            <SyncKeyGenerator />
             <DesktopSettings />
           </TabsContent>
         </Tabs>
@@ -781,6 +752,92 @@ function SwimmingTimeSlotsManager() {
           <DialogFooter><Button variant="outline" onClick={() => setDialogOpen(false)}>إلغاء</Button><Button onClick={handleSave}>{editing ? "حفظ" : "إضافة"}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// مولّد مفتاح المزامنة (Sync API Key) — لربط الفروع الأوفلاين بالسحابة
+// ═══════════════════════════════════════════════════════════
+function SyncKeyGenerator() {
+  const [key, setKey] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [visible, setVisible] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/sync/generate-key");
+      const data = await res.json();
+      setKey(data.syncApiKey || null);
+    } catch {
+      // تجاهل
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const generate = async () => {
+    if (key && !confirm("توليد مفتاح جديد سيلغي المفتاح القديم — أي فرع يستخدمه لن يقدر يزامن حتى تحدّثه بالمفتاح الجديد. متابعة؟")) return;
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/sync/generate-key", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setKey(data.syncApiKey);
+      setVisible(true);
+      toast.success("تم توليد مفتاح مزامنة جديد");
+    } catch (e: any) {
+      toast.error(e?.message || "تعذّر توليد المفتاح");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const copy = () => {
+    if (!key) return;
+    navigator.clipboard.writeText(key);
+    toast.success("تم نسخ المفتاح");
+  };
+
+  return (
+    <div className="rounded-2xl border border-border/60 bg-card p-3 mb-3 space-y-3">
+      <h3 className="font-bold text-sm flex items-center gap-2">
+        <Key className="h-4 w-4 text-primary" /> مزامنة الفروع الأوفلاين مع السحابة
+      </h3>
+      <p className="text-xs text-muted-foreground">
+        انسخ هذا المفتاح وألصقه في إعدادات تطبيق سطح المكتب (المزامنة) لكل فرع أوفلاين تبي تربطه بهذا النادي.
+      </p>
+
+      {loading ? (
+        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+      ) : key ? (
+        <div className="flex items-center gap-2">
+          <Input
+            value={key}
+            readOnly
+            type={visible ? "text" : "password"}
+            className="h-9 text-xs font-mono flex-1"
+            dir="ltr"
+          />
+          <Button size="icon" variant="outline" className="h-9 w-9" onClick={() => setVisible(!visible)}>
+            {visible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+          </Button>
+          <Button size="icon" variant="outline" className="h-9 w-9" onClick={copy}>
+            <Copy className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ) : (
+        <p className="text-xs text-amber-600">لا يوجد مفتاح مزامنة بعد لهذا النادي.</p>
+      )}
+
+      <Button size="sm" variant="outline" onClick={generate} disabled={generating}>
+        {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin ml-1" /> : <RefreshCw className="h-3.5 w-3.5 ml-1" />}
+        {key ? "توليد مفتاح جديد (يلغي القديم)" : "توليد مفتاح مزامنة"}
+      </Button>
     </div>
   );
 }

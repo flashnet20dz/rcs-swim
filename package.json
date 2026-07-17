@@ -14,7 +14,6 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
-    "db:sync-sqlite-schema": "node scripts/sync-sqlite-schema.js",
     "postinstall": "prisma generate",
     "seed": "tsx scripts/seed-roles.ts",
     "electron:dev": "concurrently \"next dev -p 3000 -H 0.0.0.0\" \"wait-on http://localhost:3000 && electron electron/main.js\"",

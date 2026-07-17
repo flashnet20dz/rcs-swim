@@ -23,39 +23,10 @@ fi
 echo "✅ Dependencies ready"
 echo ""
 
-# ─── Step 2: Switch to SQLite schema (Desktop = Offline DB) + generate client ───
-# ⚠️ مهم جداً: نسخة Desktop توفّرها هذه العملية توفير الاتصال المحلي
-# بدون إنترنت عبر SQLite. لو استعملنا schema.prisma (PostgreSQL) هنا،
-# التطبيق سيعطي خطأ اتصال بمجرد تشغيله بدون إنترنت.
-echo "🔧 Step 2: Preparing SQLite schema for Desktop/Offline + generating Prisma client..."
-node scripts/sync-sqlite-schema.js
-cp prisma/schema.prisma "prisma/.schema.prisma.build-backup"
-cp prisma/schema.sqlite.prisma prisma/schema.prisma
-
-# مهما حدث (نجاح أو فشل السكربت)، أعد schema.prisma الأصلي (PostgreSQL)
-# في النهاية حتى لا يتأثر النشر على الويب (Vercel) بهذا التبديل المؤقت.
-restore_schema() {
-  if [ -f "prisma/.schema.prisma.build-backup" ]; then
-    cp "prisma/.schema.prisma.build-backup" prisma/schema.prisma
-    rm -f "prisma/.schema.prisma.build-backup"
-    echo "↩️  تمت استعادة prisma/schema.prisma الأصلي (PostgreSQL)"
-  fi
-}
-trap restore_schema EXIT
-
+# ─── Step 2: Generate Prisma client ───
+echo "🔧 Step 2: Generating Prisma client..."
 npx prisma generate
-echo "✅ Prisma client (SQLite) generated"
-echo ""
-
-# ─── Step 2.5: Create fresh SQLite template database (all tables, no data) ───
-# هذا الملف هو ما يُنسخ لمجلد المستخدم عند أول تشغيل (بدل ملف فارغ بلا جداول)
-echo "🗄️  Step 2.5: Creating SQLite template database (empty tables)..."
-mkdir -p resources
-rm -f prisma/rcs-club-template.db
-DATABASE_URL="file:$(pwd)/prisma/rcs-club-template.db" npx prisma db push --skip-generate --accept-data-loss
-cp prisma/rcs-club-template.db resources/rcs-club-template.db
-rm -f prisma/rcs-club-template.db
-echo "✅ Template database ready: resources/rcs-club-template.db"
+echo "✅ Prisma client generated"
 echo ""
 
 # ─── Step 3: Build Next.js ───
@@ -163,12 +134,3 @@ else
   echo "❌ Setup.exe was not created"
   exit 1
 fi
-
-# ─── استعادة نهائية: schema.prisma (PostgreSQL) + إعادة توليد العميل للويب ───
-# ملاحظة: نستدعي restore_schema صراحةً هنا (وليس الاعتماد فقط على trap EXIT)
-# لأن trap لا يعمل إلا عند خروج العملية فعلياً — أي بعد هذا السطر — وبذلك لو
-# اكتفينا بالـ trap لكان "npx prisma generate" أدناه يعمل على مخطط SQLite بالخطأ.
-echo ""
-echo "🔧 استعادة schema.prisma الأصلي (PostgreSQL) وإعادة توليد العميل لنسخة الويب..."
-restore_schema
-npx prisma generate || echo "⚠️  لم يتم التوليد تلقائياً — شغّل 'npx prisma generate' يدوياً قبل العمل على نسخة الويب"

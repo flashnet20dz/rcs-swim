@@ -47,6 +47,14 @@ contextBridge.exposeInMainWorld("electronAPI", {
     // ─── قاعدة البيانات ───
     getDatabaseInfo: () => ipcRenderer.invoke("get-database-info"),
     getDatabasePath: () => ipcRenderer.invoke("get-database-path"),
+    // ─── المزامنة مع السحابة (Sync) ───
+    syncNow: () => ipcRenderer.invoke("sync-now"),
+    getSyncStatus: () => ipcRenderer.invoke("get-sync-status"),
+    setSyncApiKey: (apiKey) => ipcRenderer.invoke("set-sync-api-key", apiKey),
+    setSyncEnabled: (enabled) => ipcRenderer.invoke("set-sync-enabled", enabled),
+    onSyncStatusChanged: (callback) => {
+        ipcRenderer.on("sync-status-changed", (_event, status) => callback(status));
+    },
     // ─── التحديثات (مُعطّل الآن — جاهز للمستقبل) ───
     checkForUpdates: () => ipcRenderer.invoke("check-for-updates"),
     downloadUpdate: () => ipcRenderer.invoke("download-update"),

@@ -44,12 +44,6 @@ export async function PATCH(
 
     // ═══════════════ 1) تحديد حصة تعويضية ═══════════════
     if (body.action === "schedule") {
-      if (compensation.status === "expired" || compensation.status === "cancelled" || compensation.status === "used") {
-        return NextResponse.json(
-          { error: "لا يمكن جدولة هذا التعويض لأنه منتهي أو ملغى أو مُستخدَم مسبقاً" },
-          { status: 400 }
-        );
-      }
       const { compensationDate, compensationSwimmingDays, compensationTimeSlot } = body;
       if (!compensationDate || !compensationTimeSlot) {
         return NextResponse.json({ error: "التاريخ والتوقيت مطلوبان" }, { status: 400 });

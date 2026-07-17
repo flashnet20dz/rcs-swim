@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session";
+import { recordSyncOutbox } from "@/lib/sync-outbox";
 import {
   computeSubscriberFields,
   generateFileNumber,
@@ -138,6 +139,14 @@ export async function POST(req: NextRequest) {
         type: "create",
         description: `تم تسجيل منخرط جديد: ${subscriber.lastName} ${subscriber.firstName} (${fileNumber})`,
       },
+    });
+
+    await recordSyncOutbox({
+      clubId: currentUser.clubId,
+      modelName: "subscriber",
+      recordId: subscriber.id,
+      operation: "create",
+      payload: subscriber,
     });
 
     const fields = computeSubscriberFields(subscriber);

@@ -17,50 +17,20 @@ Write-Host "`n📦 الخطوة 1: تثبيت الحزم..." -ForegroundColor Ye
 npm install
 if ($LASTEXITCODE -ne 0) { Write-Host "❌ فشل تثبيت الحزم" -ForegroundColor Red; Read-Host "اضغط Enter للخروج"; exit 1 }
 
-# ─── الخطوة 2: التبديل إلى مخطط SQLite (Desktop = قاعدة بيانات محلية أوفلاين) ───
-# ⚠️ مهم جداً: بدون هذه الخطوة، Prisma Client يُولَّد على أساس PostgreSQL
-# (schema.prisma الأصلي)، والتطبيق يفشل بمجرد تشغيله بدون إنترنت لأن رابط
-# الاتصال المحلي (file:...) لا يطابق نوع قاعدة البيانات المُولَّد لها العميل.
-Write-Host "`n🔧 الخطوة 2: تجهيز مخطط SQLite (Offline) + توليد Prisma Client..." -ForegroundColor Yellow
-node scripts/sync-sqlite-schema.js
-Copy-Item "prisma\schema.prisma" "prisma\.schema.prisma.build-backup" -Force
-Copy-Item "prisma\schema.sqlite.prisma" "prisma\schema.prisma" -Force
-
+# ─── الخطوة 2: توليد Prisma Client ───
+Write-Host "`n🔧 الخطوة 2: توليد Prisma Client..." -ForegroundColor Yellow
 npx prisma generate
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "❌ فشل توليد Prisma" -ForegroundColor Red
-    Copy-Item "prisma\.schema.prisma.build-backup" "prisma\schema.prisma" -Force
-    Remove-Item "prisma\.schema.prisma.build-backup" -Force
-    Read-Host "اضغط Enter للخروج"; exit 1
-}
-
-# ─── الخطوة 2.5: إنشاء قاعدة بيانات SQLite "قالب" (كل الجداول، بدون بيانات) ───
-# هذا الملف يُنسخ لمجلد بيانات المستخدم عند أول تشغيل بدل ملف فارغ بلا جداول
-Write-Host "`n🗄️ الخطوة 2.5: إنشاء قاعدة بيانات SQLite القالب..." -ForegroundColor Yellow
-New-Item -ItemType Directory -Force -Path "resources" | Out-Null
-Remove-Item "prisma\rcs-club-template.db" -Force -ErrorAction SilentlyContinue
-$env:DATABASE_URL = "file:$(Get-Location)\prisma\rcs-club-template.db"
-npx prisma db push --skip-generate --accept-data-loss
-Copy-Item "prisma\rcs-club-template.db" "resources\rcs-club-template.db" -Force
-Remove-Item "prisma\rcs-club-template.db" -Force
-Write-Host "  ✅ قاعدة القالب جاهزة: resources\rcs-club-template.db" -ForegroundColor Green
+if ($LASTEXITCODE -ne 0) { Write-Host "❌ فشل توليد Prisma" -ForegroundColor Red; Read-Host "اضغط Enter للخروج"; exit 1 }
 
 # ─── الخطوة 3: بناء Next.js (Standalone) ───
 Write-Host "`n🏗️ الخطوة 3: بناء Next.js (Standalone)..." -ForegroundColor Yellow
 npm run build
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "❌ فشل بناء Next.js" -ForegroundColor Red
-    Copy-Item "prisma\.schema.prisma.build-backup" "prisma\schema.prisma" -Force
-    Remove-Item "prisma\.schema.prisma.build-backup" -Force
-    Read-Host "اضغط Enter للخروج"; exit 1
-}
+if ($LASTEXITCODE -ne 0) { Write-Host "❌ فشل بناء Next.js" -ForegroundColor Red; Read-Host "اضغط Enter للخروج"; exit 1 }
 
 # التحقق من standalone
 if (-not (Test-Path ".next\standalone\server.js")) {
     Write-Host "❌ ملف standalone/server.js غير موجود!" -ForegroundColor Red
     Write-Host "   تأكد أن next.config.ts يحتوي على: output: 'standalone'" -ForegroundColor Yellow
-    Copy-Item "prisma\.schema.prisma.build-backup" "prisma\schema.prisma" -Force
-    Remove-Item "prisma\.schema.prisma.build-backup" -Force
     Read-Host "اضغط Enter للخروج"
     exit 1
 }
@@ -78,20 +48,7 @@ npx electron-builder --win nsis
 if ($LASTEXITCODE -ne 0) {
     Write-Host "⚠️ فشل NSIS، محاولة dir فقط..." -ForegroundColor Yellow
     npx electron-builder --win --dir
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "❌ فشل البناء" -ForegroundColor Red
-        Copy-Item "prisma\.schema.prisma.build-backup" "prisma\schema.prisma" -Force
-        Remove-Item "prisma\.schema.prisma.build-backup" -Force
-        Read-Host "اضغط Enter للخروج"; exit 1
-    }
-}
-
-# ─── استعادة مخطط PostgreSQL الأصلي + إعادة توليد العميل لنسخة الويب ───
-if (Test-Path "prisma\.schema.prisma.build-backup") {
-    Copy-Item "prisma\.schema.prisma.build-backup" "prisma\schema.prisma" -Force
-    Remove-Item "prisma\.schema.prisma.build-backup" -Force
-    Write-Host "  ↩️ تمت استعادة schema.prisma الأصلي (PostgreSQL)" -ForegroundColor Cyan
-    npx prisma generate | Out-Null
+    if ($LASTEXITCODE -ne 0) { Write-Host "❌ فشل البناء" -ForegroundColor Red; Read-Host "اضغط Enter للخروج"; exit 1 }
 }
 
 # ─── الخطوة 6: عرض النتائج ───

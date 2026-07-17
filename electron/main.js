@@ -16,6 +16,7 @@ const { app, BrowserWindow, Menu, shell, ipcMain, dialog, Notification } = requi
 const path = require("path");
 const fs = require("fs");
 const desktopSettings = require("./desktop-settings");
+const syncEngine = require("./sync-engine");
 let mainWindow = null;
 let splashWindow = null;
 // وضع العمل: Hybrid — يعمل offline و online
@@ -599,6 +600,48 @@ ipcMain.handle("import-database", async () => {
 ipcMain.handle("auto-backup", async () => {
     return doAutoBackup();
 });
+
+// ═══════════════════════════════════════════════════════════
+// المزامنة مع السحابة (Sync)
+// ═══════════════════════════════════════════════════════════
+ipcMain.handle("sync-now", async () => {
+    if (!usingLocal) return { status: "not-applicable", message: "المزامنة تعمل فقط في وضع Offline المحلي" };
+    const apiKey = desktopSettings.getSetting("syncApiKey");
+    const result = await syncEngine.syncNow(apiKey, (status) => {
+        desktopSettings.setSetting("lastSyncStatus", status);
+        if (status === "synced") desktopSettings.setSetting("lastSyncAt", new Date().toISOString());
+    });
+    return result;
+});
+ipcMain.handle("get-sync-status", async () => {
+    return {
+        status: desktopSettings.getSetting("lastSyncStatus"),
+        lastSyncAt: desktopSettings.getSetting("lastSyncAt"),
+        hasApiKey: !!desktopSettings.getSetting("syncApiKey"),
+        syncEnabled: desktopSettings.getSetting("syncEnabled"),
+        usingLocal,
+    };
+});
+ipcMain.handle("set-sync-api-key", async (event, apiKey) => {
+    desktopSettings.setSetting("syncApiKey", apiKey);
+    return { success: true };
+});
+ipcMain.handle("set-sync-enabled", async (event, enabled) => {
+    desktopSettings.setSetting("syncEnabled", enabled);
+    if (!enabled) syncEngine.stopAutoSync();
+    else if (usingLocal) {
+        syncEngine.startAutoSync(
+            () => desktopSettings.getSetting("syncApiKey"),
+            (status) => {
+                desktopSettings.setSetting("lastSyncStatus", status);
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                    mainWindow.webContents.send("sync-status-changed", status);
+                }
+            }
+        );
+    }
+    return { success: true };
+});
 // ─── الإشعارات ───
 ipcMain.handle("show-notification", async (event, title, body) => {
     try {
@@ -700,6 +743,19 @@ else {
             if (BrowserWindow.getAllWindows().length === 0)
                 createWindow();
         });
+        // ═══ بدء محرك المزامنة (فقط في وضع Offline المحلي) ═══
+        if (usingLocal && desktopSettings.getSetting("syncEnabled")) {
+            syncEngine.startAutoSync(
+                () => desktopSettings.getSetting("syncApiKey"),
+                (status) => {
+                    desktopSettings.setSetting("lastSyncStatus", status);
+                    if (status === "synced") desktopSettings.setSetting("lastSyncAt", new Date().toISOString());
+                    if (mainWindow && !mainWindow.isDestroyed()) {
+                        mainWindow.webContents.send("sync-status-changed", status);
+                    }
+                }
+            );
+        }
         // النسخ الاحتياطي التلقائي عند البدء
         setTimeout(() => {
             doAutoBackup().catch((e) => console.error("Auto-backup failed:", e));
@@ -707,6 +763,7 @@ else {
     });
 }
 app.on("window-all-closed", () => {
+    syncEngine.stopAutoSync();
     // إيقاف الخادم المحلي إذا كان يعمل
     if (nextServer) {
         console.log("[App] Stopping local server...");

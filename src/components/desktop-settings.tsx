@@ -252,6 +252,86 @@ export function DesktopSettings() {
         </div>
       </div>
 
+      {/* المزامنة مع السحابة */}
+      <div className="rounded-xl border border-border/60 bg-card p-4 space-y-3">
+        <h4 className="font-bold text-sm flex items-center gap-2">
+          <RefreshCw className="h-4 w-4 text-primary" /> المزامنة مع السحابة
+        </h4>
+        <div className="flex items-center justify-between rounded-lg bg-muted/40 p-2.5">
+          <div>
+            <Label className="text-xs font-semibold">تفعيل المزامنة التلقائية</Label>
+            <p className="text-[10px] text-muted-foreground">مزامنة دورية كل 5 دقائق عند توفر الإنترنت</p>
+          </div>
+          <Switch
+            checked={settings.syncEnabled !== false}
+            onCheckedChange={async (c) => {
+              updateSetting("syncEnabled", c);
+              await (window as any).electronAPI?.setSyncEnabled(c);
+            }}
+          />
+        </div>
+        <div>
+          <Label className="text-xs">مفتاح المزامنة (Club API Key)</Label>
+          <Input
+            value={settings.syncApiKey || ""}
+            onChange={(e) => updateSetting("syncApiKey", e.target.value)}
+            className="h-9 text-xs font-mono"
+            dir="ltr"
+            type="password"
+            placeholder="rcs_sync_..."
+          />
+          <p className="text-[10px] text-muted-foreground mt-1">
+            احصل عليه من لوحة تحكم النادي على السحابة → الإعدادات → مفتاح المزامنة
+          </p>
+        </div>
+        {settings.lastSyncStatus && (
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-muted-foreground">آخر حالة مزامنة:</span>
+            <Badge
+              variant="outline"
+              className={
+                settings.lastSyncStatus === "synced" ? "border-emerald-300 text-emerald-700" :
+                settings.lastSyncStatus === "error" ? "border-rose-300 text-rose-700" :
+                settings.lastSyncStatus === "offline" ? "border-gray-300 text-gray-500" :
+                "border-amber-300 text-amber-700"
+              }
+            >
+              {{
+                synced: "متزامن",
+                syncing: "جاري المزامنة",
+                offline: "أوفلاين",
+                error: "خطأ",
+                "no-api-key": "بدون مفتاح",
+                idle: "غير مفعّل بعد",
+              }[settings.lastSyncStatus as string] || settings.lastSyncStatus}
+            </Badge>
+            {settings.lastSyncAt && (
+              <span className="text-muted-foreground">
+                {new Date(settings.lastSyncAt).toLocaleString("ar-DZ")}
+              </span>
+            )}
+          </div>
+        )}
+        <Button
+          size="sm"
+          variant="outline"
+          className="w-full"
+          onClick={async () => {
+            await (window as any).electronAPI?.setSyncApiKey(settings.syncApiKey || "");
+            const result = await (window as any).electronAPI?.syncNow();
+            if (result?.status === "synced") toast.success("تمت المزامنة بنجاح");
+            else if (result?.status === "offline") toast.error("لا يوجد اتصال بالإنترنت");
+            else if (result?.status === "no-api-key") toast.error("أدخل مفتاح المزامنة أولاً");
+            else if (result?.status === "not-applicable") toast.error("المزامنة تعمل فقط في وضع Offline المحلي");
+            else toast.error(result?.error || "فشلت المزامنة");
+            const status = await (window as any).electronAPI?.getSyncStatus();
+            if (status) setSettings((s: any) => ({ ...s, lastSyncStatus: status.status, lastSyncAt: status.lastSyncAt }));
+          }}
+        >
+          <RefreshCw className="h-3.5 w-3.5 ml-1" /> مزامنة الآن
+        </Button>
+      </div>
+
       {/* إعدادات النظام */}
       <div className="rounded-xl border border-border/60 bg-card p-4 space-y-3">
         <h4 className="font-bold text-sm flex items-center gap-2">
