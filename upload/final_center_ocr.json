@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "LINE 1: <النادي الرياضي لسيدا>\nLINE 2: <الجمعية الرياضية لسيدا>",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1782987940,
+  "id": "20260702182535e66ce2741fed443b",
+  "model": "glm-4.6v",
+  "object": "chat.completion",
+  "request_id": "20260702182535e66ce2741fed443b",
+  "usage": {
+    "completion_tokens": 34,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 567,
+    "prompt_tokens_details": {
+      "cached_tokens": 5
+    },
+    "total_tokens": 601
+  }
+}

@@ -1,0 +1,162 @@
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { computeSubscriberFields } from "@/lib/rcs";
+import { getCurrentUser } from "@/lib/session";
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const clubFilter = currentUser.role === "superadmin" ? {} : { clubId: currentUser.clubId! };
+    const subscriber = await db.subscriber.findFirst({ where: { id, ...clubFilter } });
+    if (!subscriber) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    const fields = computeSubscriberFields(subscriber);
+    return NextResponse.json({ subscriber: { ...subscriber, ...fields } });
+  } catch (error) {
+    console.error("GET /api/subscribers/[id] error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
+
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const body = await req.json();
+
+    const clubFilter = currentUser.role === "superadmin" ? {} : { clubId: currentUser.clubId! };
+    const existing = await db.subscriber.findFirst({ where: { id, ...clubFilter } });
+    if (!existing) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    // بناء بيانات التحديث — لا نرسل fileNumber إلا إذا تغير النوع فعلاً
+    let updateData: any = {
+      lastName: body.lastName ?? existing.lastName,
+      firstName: body.firstName ?? existing.firstName,
+      birthDate: body.birthDate ? new Date(body.birthDate) : existing.birthDate,
+      gender: body.gender ?? existing.gender,
+      bloodType: body.bloodType !== undefined ? (body.bloodType || null) : existing.bloodType,
+      subscriptionType: body.subscriptionType ?? existing.subscriptionType,
+      lastPaymentDate: body.lastPaymentDate !== undefined
+        ? (body.lastPaymentDate ? new Date(body.lastPaymentDate) : null)
+        : existing.lastPaymentDate,
+      paymentStatus: body.paymentStatus ?? existing.paymentStatus,
+      swimmingDays: body.swimmingDays !== undefined ? (body.swimmingDays || null) : existing.swimmingDays,
+      timeSlot: body.timeSlot !== undefined ? (body.timeSlot || null) : existing.timeSlot,
+      phone: body.phone !== undefined ? (body.phone || null) : existing.phone,
+    };
+
+    // ═══ توليد رقم ملف جديد فقط إذا تغير نوع الاشتراك فعلاً ═══
+    // التحقق: هل النوع الجديد موجود في body AND مختلف عن النوع القديم؟
+    const newTypeCode = body.subscriptionType;
+    const oldTypeCode = existing.subscriptionType;
+    const typeActuallyChanged = newTypeCode && newTypeCode !== oldTypeCode;
+
+    if (typeActuallyChanged) {
+      console.log(`[UPDATE] Type changed: ${oldTypeCode} → ${newTypeCode} for subscriber ${existing.fileNumber}`);
+      const newType = await db.subscriptionType.findFirst({
+        where: { clubId: existing.clubId, code: newTypeCode },
+        select: { givesMembershipNumber: true, numberingGroup: true },
+      });
+
+      if (newType && !newType.givesMembershipNumber) {
+        // النوع الجديد لا يمنح رقم عضوية — استبدل رقم الملف بالكود
+        updateData.fileNumber = newTypeCode;
+        console.log(`[UPDATE] New fileNumber (no membership): ${newTypeCode}`);
+      } else if (newType && newType.givesMembershipNumber) {
+        // النوع الجديد يمنح رقم عضوية — ولّد رقماً جديداً
+        const group = newType.numberingGroup || "RCS";
+        // استثناء السجل الحالي من قائمة التحقق
+        const existingSubs = await db.subscriber.findMany({
+          where: { clubId: existing.clubId, id: { not: id } },
+          select: { fileNumber: true },
+        });
+        let maxNum = 0;
+        for (const sub of existingSubs) {
+          const match = sub.fileNumber.match(new RegExp(`^${group}(\\d+)$`));
+          if (match) {
+            const num = parseInt(match[1]);
+            if (num > maxNum) maxNum = num;
+          }
+        }
+        // تجربة أرقام حتى نجد واحداً غير مستخدم (مع استثناء السجل الحالي)
+        let attempts = 0;
+        let newFileNumber = `${group}${String(maxNum + 1).padStart(3, "0")}`;
+        while (attempts < 100) {
+          const conflict = existingSubs.some(s => s.fileNumber === newFileNumber);
+          if (!conflict) break;
+          maxNum++;
+          newFileNumber = `${group}${String(maxNum + 1).padStart(3, "0")}`;
+          attempts++;
+        }
+        updateData.fileNumber = newFileNumber;
+        console.log(`[UPDATE] New fileNumber (generated): ${newFileNumber} (group: ${group}, max: ${maxNum})`);
+      }
+      // إذا لم يوجد النوع في DB — لا نغير fileNumber
+    }
+    // إذا لم يتغير النوع: لا نضع fileNumber في updateData إطلاقاً → يبقى كما هو
+
+    const subscriber = await db.subscriber.update({
+      where: { id },
+      data: updateData,
+    });
+
+    await db.activity.create({
+      data: {
+        clubId: existing.clubId,
+        subscriberId: subscriber.id,
+        type: "update",
+        description: `تم تحديث بيانات ${subscriber.lastName} ${subscriber.firstName}`,
+      },
+    });
+
+    const fields = computeSubscriberFields(subscriber);
+    return NextResponse.json({ subscriber: { ...subscriber, ...fields } });
+  } catch (error) {
+    console.error("PUT /api/subscribers/[id] error:", error);
+    const errMsg = error instanceof Error ? error.message : "Internal Server Error";
+    return NextResponse.json({ error: errMsg }, { status: 500 });
+  }
+}
+
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const clubFilter = currentUser.role === "superadmin" ? {} : { clubId: currentUser.clubId! };
+    const sub = await db.subscriber.findFirst({ where: { id, ...clubFilter } });
+    if (!sub) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    await db.activity.create({
+      data: {
+        clubId: sub.clubId,
+        type: "delete",
+        description: `تم حذف المنخرط ${sub.lastName} ${sub.firstName} (${sub.fileNumber})`,
+      },
+    });
+
+    await db.subscriber.delete({ where: { id } });
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("DELETE /api/subscribers/[id] error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "- Exact Arabic word: التاريخ\n- Colon: Yes, there is a colon (:)\n- Punctuation and numbers after: .../٠.٢٠.٢٠٢٦\n- Digits: Arabic-Indic (٠١٢٣)",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1782986757,
+  "id": "20260702180554567c3e6be54e4d3a",
+  "model": "glm-4.6v",
+  "object": "chat.completion",
+  "request_id": "20260702180554567c3e6be54e4d3a",
+  "usage": {
+    "completion_tokens": 62,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 1422,
+    "prompt_tokens_details": {
+      "cached_tokens": 4
+    },
+    "total_tokens": 1484
+  }
+}

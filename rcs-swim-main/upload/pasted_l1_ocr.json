@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "الإدارة العامة للزكاة والدخل",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1782987464,
+  "id": "20260702181741051e8c9a84394c00",
+  "model": "glm-4.6v",
+  "object": "chat.completion",
+  "request_id": "20260702181741051e8c9a84394c00",
+  "usage": {
+    "completion_tokens": 13,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 1109,
+    "prompt_tokens_details": {
+      "cached_tokens": 4
+    },
+    "total_tokens": 1122
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "القضية الإسلامية الإسلامية الإسلامية الإسلامية",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1782987775,
+  "id": "20260702182253cfc0aa4dc27948a1",
+  "model": "glm-4.6v",
+  "object": "chat.completion",
+  "request_id": "20260702182253cfc0aa4dc27948a1",
+  "usage": {
+    "completion_tokens": 15,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 1086,
+    "prompt_tokens_details": {
+      "cached_tokens": 4
+    },
+    "total_tokens": 1101
+  }
+}
