@@ -59,7 +59,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ subscribers: filtered });
   } catch (error) {
     console.error("GET /api/subscribers error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    const errMsg = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    return NextResponse.json({ error: "Internal Server Error", debug: errMsg }, { status: 500 });
   }
 }
 
