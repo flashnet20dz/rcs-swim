@@ -31,8 +31,11 @@ export async function GET() {
     const avgPayment = paid.length > 0 ? Math.round(totalRevenue / paid.length) : 0;
 
     // Subscription type breakdown — ديناميكي من قاعدة البيانات
+    const subTypeWhere = currentUser.role === "superadmin"
+      ? { active: true }
+      : { clubId: currentUser.clubId!, active: true };
     const dbSubTypes = await db.subscriptionType.findMany({
-      where: { clubId: currentUser.clubId!, active: true },
+      where: subTypeWhere,
       select: { code: true, name: true },
       orderBy: { sortOrder: "asc" },
     });

@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     const gender = url.searchParams.get("gender") || "";
     const renewalStatus = url.searchParams.get("renewalStatus") || "";
 
-    const where: Record<string, unknown> = { clubId: currentUser.clubId };
+    const where: Record<string, unknown> = currentUser.role === "superadmin" ? {} : { clubId: currentUser.clubId };
     if (search) {
       where.OR = [
         { lastName: { contains: search } },
@@ -59,8 +59,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ subscribers: filtered });
   } catch (error) {
     console.error("GET /api/subscribers error:", error);
-    const errMsg = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
-    return NextResponse.json({ error: "Internal Server Error", debug: errMsg }, { status: 500 });
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
 

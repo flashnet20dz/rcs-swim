@@ -12,9 +12,11 @@ export async function GET() {
     // Self-heal: ensure default settings exist
     await ensureDefaultSettings();
 
-    const settings = await db.setting.findMany({
-      where: { clubId: currentUser.clubId! },
-    });
+    const settings = currentUser.role === "superadmin"
+      ? []
+      : await db.setting.findMany({
+          where: { clubId: currentUser.clubId! },
+        });
     const map: Record<string, string> = {};
     for (const s of settings) map[s.key] = s.value;
     return NextResponse.json({ settings: map });
