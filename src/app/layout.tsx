@@ -19,13 +19,13 @@ const tajawal = Tajawal({
 });
 
 export const metadata: Metadata = {
-  title: "نادي RCS | منظومة إدارة الاشتراكات والسباحة",
-  description: "منظومة عصرية متكاملة لإدارة اشتراكات نادي السباحة RCS — تسجيل، إحصائيات، تجديد، حضور بكود QR، وإشعارات WhatsApp",
+  title: "AquaCore Club Manager | منظومة إدارة الاشتراكات والسباحة",
+  description: "AquaCore Club Manager — منظومة عصرية متكاملة لإدارة اشتراكات نادي السباحة — تسجيل، إحصائيات، تجديد، حضور بكود QR، وإشعارات WhatsApp",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "نادي RCS",
+    title: "AquaCore Club Manager",
   },
   icons: {
     icon: [
@@ -35,8 +35,8 @@ export const metadata: Metadata = {
     apple: [{ url: "/icon-192.png", sizes: "192x192" }],
   },
   openGraph: {
-    title: "نادي RCS - منظومة إدارة الاشتراكات",
-    description: "منظومة متكاملة لإدارة اشتراكات نادي السباحة RCS",
+    title: "AquaCore Club Manager - منظومة إدارة الاشتراكات",
+    description: "AquaCore Club Manager — منظومة متكاملة لإدارة اشتراكات نادي السباحة",
     type: "website",
     locale: "ar_DZ",
   },

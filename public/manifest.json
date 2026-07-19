@@ -1,7 +1,7 @@
 {
-  "name": "نادي RCS — منظومة إدارة الاشتراكات والسباحة",
-  "short_name": "نادي RCS",
-  "description": "منظومة احترافية متكاملة لإدارة اشتراكات وحضور نادي السباحة RCS — تعمل أوفلاين وسحابياً",
+  "name": "AquaCore Club Manager — منظومة إدارة الاشتراكات والسباحة",
+  "short_name": "AquaCore Club Manager",
+  "description": "AquaCore Club Manager — منظومة احترافية متكاملة لإدارة اشتراكات وحضور نادي السباحة — تعمل أوفلاين وسحابياً",
   "lang": "ar",
   "dir": "rtl",
   "start_url": "/",

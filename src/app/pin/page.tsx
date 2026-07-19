@@ -175,7 +175,7 @@ export default function PinLoginPage() {
         </motion.div>
 
         <p className="text-center text-xs text-white/60 mt-4">
-          © 2026 نادي RCS — كاشير سريع
+          © 2026 AquaCore Club Manager — كاشير سريع
         </p>
       </motion.div>
     </div>

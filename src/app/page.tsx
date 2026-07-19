@@ -151,9 +151,9 @@ export default function Home() {
   // Filters drawer (mobile)
   const [filtersDrawerOpen, setFiltersDrawerOpen] = useState(false);
   // Customizable header/footer text from settings
-  const [headerTitle, setHeaderTitle] = useState("نادي RCS");
+  const [headerTitle, setHeaderTitle] = useState("AquaCore Club Manager");
   const [headerSubtitle, setHeaderSubtitle] = useState("منظومة إدارة الاشتراكات والسباحة");
-  const [footerText, setFooterText] = useState("نادي RCS — منظومة إدارة الاشتراكات والسباحة");
+  const [footerText, setFooterText] = useState("AquaCore Club Manager — منظومة إدارة الاشتراكات والسباحة");
   const [footerNote, setFooterNote] = useState("المبلغ الإجمالي = رسوم الاشتراك + مصاريف التأمين");
   const [headerLogo, setHeaderLogo] = useState<string>("");
   const [themePrimary, setThemePrimary] = useState("#0f766e");
@@ -569,7 +569,7 @@ export default function Home() {
                           مرحباً {sessionUser?.name}
                         </span>
                       </div>
-                      <h2 className="text-2xl sm:text-3xl font-extrabold mb-1">منظومة إدارة الاشتراكات</h2>
+                      <h2 className="text-2xl sm:text-3xl font-extrabold mb-1">AquaCore Club Manager</h2>
                       <p className="text-sm text-white/80 max-w-md">
                         تابع اشتراكات، حضور، وتجديدات منخرطيك في مكان واحد — مع QR وإشعارات WhatsApp
                       </p>
@@ -1429,7 +1429,7 @@ function EmptyState({ onAdd, hasFilters }: { onAdd: () => void; hasFilters: bool
       </div>
       <h3 className="text-lg font-bold mb-1">{hasFilters ? "لا توجد نتائج" : "ابدأ بتسجيل أول منخرط"}</h3>
       <p className="text-sm text-muted-foreground mb-4 max-w-sm">
-        {hasFilters ? "لم نعثر على منخرطين مطابقين للفلاتر." : "أنشئ سجلك الأول للمنخرطين في نادي RCS."}
+        {hasFilters ? "لم نعثر على منخرطين مطابقين للفلاتر." : "أنشئ سجلك الأول للمنخرطين في AquaCore Club Manager."}
       </p>
       <Button onClick={onAdd} className="h-11 px-6"><Plus className="h-4 w-4 ml-1" /> تسجيل منخرط</Button>
     </motion.div>

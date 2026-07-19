@@ -123,9 +123,9 @@ function LoginForm() {
                 <Waves className="h-9 w-9 text-teal-400" strokeWidth={2.5} />
               </div>
               <h1 className="text-xl font-extrabold text-white tracking-tight">
-                منصة إدارة النوادي الرياضية
+                AquaCore Club Manager
               </h1>
-              <p className="text-sm text-teal-400/80 mt-1 font-medium">منظومة احترافية متكاملة</p>
+              <p className="text-sm text-teal-400/80 mt-1 font-medium">منظومة إدارة النوادي الرياضية</p>
             </div>
 
             {/* Form */}
@@ -231,7 +231,7 @@ function LoginForm() {
 
         {/* Footer */}
         <p className="text-center text-xs text-white/30 mt-6">
-          © 2026 منصة إدارة النوادي الرياضية — جميع الحقوق محفوظة
+          © 2026 AquaCore Club Manager — جميع الحقوق محفوظة
         </p>
       </motion.div>
     </div>
