@@ -39,7 +39,7 @@ export async function syncNow(): Promise<SyncResult> {
   const deviceId = await getDeviceId();
 
   // ─── Step 1: Push outbox ───
-  const outbox = await getOutbox();
+  const outbox = (await getOutbox()) || [];
   for (const entry of outbox) {
     try {
       const res = await fetch(entry.url, {
@@ -75,7 +75,7 @@ export async function syncNow(): Promise<SyncResult> {
 
       // Merge: cloud is authoritative for records updated after our last sync
       if (cloudSubs.length > 0) {
-        const localSubs = await getCachedSubscribers();
+        const localSubs = (await getCachedSubscribers()) || [];
         const localMap = new Map(localSubs.map((s) => [s.id, s]));
 
         for (const cloudSub of cloudSubs) {
