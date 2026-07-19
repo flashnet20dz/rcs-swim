@@ -56,12 +56,13 @@ function openDB(): Promise<IDBDatabase> {
 
 export async function cacheSubscribers(subs: any[]): Promise<void> {
   try {
+    const list = Array.isArray(subs) ? subs : [];
     const db = await openDB();
     const tx = db.transaction("subscribers", "readwrite");
     const store = tx.objectStore("subscribers");
     // Clear + bulk insert
     store.clear();
-    for (const s of subs) store.put(s);
+    for (const s of list) store.put(s);
     await tx.done;
   } catch (e) {
     console.error("cacheSubscribers:", e);
