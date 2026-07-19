@@ -34,11 +34,17 @@ export async function GET(req: NextRequest) {
 
 /**
  * POST /api/pool-closures
- * ينشئ إغلاقاً للمسبح، ويكتشف تلقائياً كل المنخرطين الذين حصتهم المعتادة
- * تتوافق مع تاريخ/مجموعة أيام/توقيت الإغلاق، وينشئ لهم سجلات تعويض (status = pending).
+ * ينشئ إغلاقاً للمسبح، ويكتشف تلقائياً كل المنخرطين الذين يطابقون معايير التصفية،
+ * وينشئ لهم سجلات تعويض (status = pending).
  *
- * body: { date, swimmingDays?, timeSlot?, reason, note? }
- * - swimmingDays / timeSlot فارغين = يشمل الإغلاق كل المنخرطين (إغلاق كامل لليوم)
+ * body: {
+ *   date, reason, note?,
+ *   swimmingDays?, timeSlot?,              // تصفية حسب الحصة المعتادة (اختياري)
+ *   registeredOnOrBefore?, registeredOnOrAfter?  // تصفية حسب تاريخ التسجيل (اختياري، ISO date)
+ * }
+ * - كل معايير التصفية اختيارية ومجتمعة بـ AND. إذا كلها فارغة = يشمل كل المنخرطين.
+ * - مثال "تعويض جماعي": ترك swimmingDays/timeSlot فارغين، وتحديد registeredOnOrBefore
+ *   فقط → يعوّض كل المنخرطين المسجلين في أو قبل ذلك التاريخ، بغض النظر عن حصتهم.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -48,7 +54,10 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { date, swimmingDays, timeSlot, reason, note } = body;
+    const {
+      date, swimmingDays, timeSlot, reason, note,
+      registeredOnOrBefore, registeredOnOrAfter,
+    } = body;
 
     if (!date || !reason) {
       return NextResponse.json({ error: "التاريخ وسبب الإغلاق مطلوبان" }, { status: 400 });
@@ -74,11 +83,26 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // 2) اكتشف المنخرطين المتأثرين: نفس مجموعة الأيام + نفس التوقيت
-    //    (إذا لم تُحدَّد قيمة، اعتبرها "تطابق كل شيء" — إغلاق شامل)
+    // 2) اكتشف المنخرطين المتأثرين حسب كل معايير التصفية المُحدَّدة (AND)
     const where: Record<string, unknown> = { clubId };
     if (swimmingDays) where.swimmingDays = swimmingDays;
     if (timeSlot) where.timeSlot = timeSlot;
+
+    if (registeredOnOrBefore || registeredOnOrAfter) {
+      const createdAtFilter: Record<string, Date> = {};
+      if (registeredOnOrBefore) {
+        // نهاية اليوم المحدَّد، عشان "في أو قبل" يشمل نفس اليوم كامل
+        const end = new Date(registeredOnOrBefore);
+        end.setHours(23, 59, 59, 999);
+        createdAtFilter.lte = end;
+      }
+      if (registeredOnOrAfter) {
+        const start = new Date(registeredOnOrAfter);
+        start.setHours(0, 0, 0, 0);
+        createdAtFilter.gte = start;
+      }
+      where.createdAt = createdAtFilter;
+    }
 
     const affectedSubscribers = await db.subscriber.findMany({ where });
 
@@ -113,7 +137,11 @@ export async function POST(req: NextRequest) {
           type: "pool_closure",
           description: `إغلاق مسبح للصيانة بتاريخ ${closureDate.toLocaleDateString("ar")} — تأثر ${affectedSubscribers.length} منخرط(ة)`,
           userId: currentUser.id,
-          metadata: JSON.stringify({ closureId: closure.id, reason, count: affectedSubscribers.length }),
+          metadata: JSON.stringify({
+            closureId: closure.id, reason, count: affectedSubscribers.length,
+            registeredOnOrBefore: registeredOnOrBefore || null,
+            registeredOnOrAfter: registeredOnOrAfter || null,
+          }),
         },
       });
     }

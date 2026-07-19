@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   CalendarOff,
   CalendarCheck,
+  CalendarClock,
   CheckCircle2,
   Clock,
   Loader2,
@@ -328,9 +329,47 @@ function NewClosureDialog({
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // ─── تعويض جماعي حسب تاريخ التسجيل (اختياري) ───
+  const [showBulkFilter, setShowBulkFilter] = useState(false);
+  const [registeredOnOrBefore, setRegisteredOnOrBefore] = useState("");
+  const [registeredOnOrAfter, setRegisteredOnOrAfter] = useState("");
+  const [previewCount, setPreviewCount] = useState<number | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  const hasAnyFilter =
+    swimmingDays !== "__all__" || timeSlot !== "__all__" ||
+    !!registeredOnOrBefore || !!registeredOnOrAfter;
+
+  const buildParams = () => {
+    const params = new URLSearchParams();
+    if (swimmingDays !== "__all__") params.set("swimmingDays", swimmingDays);
+    if (timeSlot !== "__all__") params.set("timeSlot", timeSlot);
+    if (registeredOnOrBefore) params.set("registeredOnOrBefore", registeredOnOrBefore);
+    if (registeredOnOrAfter) params.set("registeredOnOrAfter", registeredOnOrAfter);
+    return params;
+  };
+
+  const preview = async () => {
+    setPreviewLoading(true);
+    setPreviewCount(null);
+    try {
+      const res = await fetch(`/api/pool-closures/preview?${buildParams().toString()}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setPreviewCount(data.total);
+    } catch (e: any) {
+      toast.error(e?.message || "تعذّرت المعاينة");
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
   const submit = async () => {
     if (!date || !reason) {
       toast.error("التاريخ وسبب الإغلاق مطلوبان");
+      return;
+    }
+    if (!hasAnyFilter && !confirm("لم تحدد أي تصفية — هذا سيعوّض كل المنخرطين بدون استثناء. متابعة؟")) {
       return;
     }
     setSubmitting(true);
@@ -344,6 +383,8 @@ function NewClosureDialog({
           timeSlot: timeSlot === "__all__" ? null : timeSlot,
           reason,
           note: note || undefined,
+          registeredOnOrBefore: registeredOnOrBefore || undefined,
+          registeredOnOrAfter: registeredOnOrAfter || undefined,
         }),
       });
       const data = await res.json();
@@ -351,6 +392,7 @@ function NewClosureDialog({
       toast.success(`تم تسجيل الإغلاق — تأثر ${data.affectedCount} منخرط(ة) وأُنشئت لهم تعويضات`);
       onOpenChange(false);
       setDate(""); setSwimmingDays("__all__"); setTimeSlot("__all__"); setReason(""); setNote("");
+      setRegisteredOnOrBefore(""); setRegisteredOnOrAfter(""); setPreviewCount(null); setShowBulkFilter(false);
       onCreated();
     } catch (e: any) {
       toast.error(e?.message || "تعذّر تسجيل الإغلاق");
@@ -361,7 +403,7 @@ function NewClosureDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent dir="rtl" className="max-w-md">
+      <DialogContent dir="rtl" className="max-w-md max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CalendarOff className="h-4 w-4" />
@@ -377,7 +419,7 @@ function NewClosureDialog({
 
           <div className="space-y-1.5">
             <Label>مجموعة الأيام المتأثرة</Label>
-            <Select value={swimmingDays} onValueChange={setSwimmingDays}>
+            <Select value={swimmingDays} onValueChange={(v) => { setSwimmingDays(v); setPreviewCount(null); }}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">كل المجموعات (إغلاق شامل لليوم)</SelectItem>
@@ -390,7 +432,7 @@ function NewClosureDialog({
 
           <div className="space-y-1.5">
             <Label>التوقيت المتأثر</Label>
-            <Select value={timeSlot} onValueChange={setTimeSlot}>
+            <Select value={timeSlot} onValueChange={(v) => { setTimeSlot(v); setPreviewCount(null); }}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">كل التوقيتات</SelectItem>
@@ -415,9 +457,65 @@ function NewClosureDialog({
             <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} />
           </div>
 
+          {/* ─── تعويض جماعي حسب تاريخ التسجيل ─── */}
+          <div className="rounded-lg border border-dashed border-border/70">
+            <button
+              type="button"
+              onClick={() => setShowBulkFilter(!showBulkFilter)}
+              className="w-full flex items-center justify-between p-2.5 text-xs font-semibold"
+            >
+              <span className="flex items-center gap-1.5">
+                <CalendarClock className="h-3.5 w-3.5 text-primary" />
+                تعويض جماعي حسب تاريخ التسجيل (اختياري)
+              </span>
+              <span className="text-muted-foreground">{showBulkFilter ? "−" : "+"}</span>
+            </button>
+            {showBulkFilter && (
+              <div className="p-2.5 pt-0 space-y-3">
+                <p className="text-[11px] text-muted-foreground">
+                  مثال: عوّض كل المنخرطين المسجلين في أو قبل تاريخ معيّن — بغض النظر عن حصتهم.
+                  اترك الحقول فارغة لتجاهل هذا الشرط.
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">مسجَّل في أو قبل</Label>
+                    <Input
+                      type="date"
+                      value={registeredOnOrBefore}
+                      onChange={(e) => { setRegisteredOnOrBefore(e.target.value); setPreviewCount(null); }}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">مسجَّل في أو بعد</Label>
+                    <Input
+                      type="date"
+                      value={registeredOnOrAfter}
+                      onChange={(e) => { setRegisteredOnOrAfter(e.target.value); setPreviewCount(null); }}
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ─── معاينة عدد المتأثرين ─── */}
+          <div className="flex items-center gap-2">
+            <Button type="button" size="sm" variant="outline" onClick={preview} disabled={previewLoading}>
+              {previewLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin ml-1" /> : <Users className="h-3.5 w-3.5 ml-1" />}
+              معاينة عدد المتأثرين
+            </Button>
+            {previewCount !== null && (
+              <Badge variant="outline" className="text-xs">
+                سيتأثر {previewCount} منخرط(ة)
+              </Badge>
+            )}
+          </div>
+
           <p className="text-xs text-muted-foreground bg-muted/50 rounded-md p-2 flex items-start gap-1.5">
             <Users className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-            سيتم تلقائياً تحديد كل المنخرطين الذين حصتهم المعتادة تطابق الأيام/التوقيت المختار،
+            سيتم تلقائياً تحديد كل المنخرطين المطابقين لكل الشروط المحدَّدة أعلاه (حصة + تاريخ تسجيل)،
             وإنشاء تعويض لكل واحد منهم بحالة "بانتظار التحديد".
           </p>
         </div>
