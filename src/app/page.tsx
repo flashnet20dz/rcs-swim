@@ -207,7 +207,6 @@ export default function Home() {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (search) params.set("search", search);
       if (filterPayment) params.set("paymentStatus", filterPayment);
       if (filterType) params.set("subscriptionType", filterType);
       if (filterGender) params.set("gender", filterGender);
@@ -229,7 +228,7 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }, [search, filterPayment, filterType, filterGender, filterRenewal]);
+  }, [filterPayment, filterType, filterGender, filterRenewal]);
 
   useEffect(() => {
     if (!sessionUser) return;
@@ -286,10 +285,19 @@ export default function Home() {
 
   const hasFilters = search || filterPayment || filterType || filterGender || filterRenewal || filterAgeCategory;
 
+  // بحث فوري (client-side) — بدون أي طلب شبكة، نتيجة لحظية أثناء الكتابة
+  const normalizedSearch = search.trim().toLowerCase();
+  const searchFiltered = normalizedSearch
+    ? subscribers.filter((s) => {
+        const haystack = `${s.fileNumber} ${s.firstName} ${s.lastName} ${s.phone || ""}`.toLowerCase();
+        return haystack.includes(normalizedSearch);
+      })
+    : subscribers;
+
   // Client-side age-category filter (API doesn't support this dimension)
   const visibleSubscribers = filterAgeCategory
-    ? subscribers.filter((s) => getAgeCategory(s.gender, s.age) === filterAgeCategory)
-    : subscribers;
+    ? searchFiltered.filter((s) => getAgeCategory(s.gender, s.age) === filterAgeCategory)
+    : searchFiltered;
 
   // Bulk delete handlers
   const toggleSelect = (id: string) => {

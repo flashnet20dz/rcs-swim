@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Calendar, CheckCircle2, Clock, QrCode, Search, Trash2, Users, Loader2,
@@ -70,6 +70,7 @@ export function AttendancePanel({ subscribers, onRefresh }: AttendancePanelProps
   const [manualSubId, setManualSubId] = useState("");
   const [filterGroup, setFilterGroup] = useState("all");
   const [showHeatmap, setShowHeatmap] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const fetchAttendance = useCallback(async () => {
     setLoading(true);
@@ -145,6 +146,8 @@ export function AttendancePanel({ subscribers, onRefresh }: AttendancePanelProps
         onRefresh?.();
       }
       setManualSubId("");
+      setSearch("");
+      searchInputRef.current?.focus();
     } catch {
       notifyError();
       toast.error("خطأ في الاتصال");
@@ -282,9 +285,17 @@ export function AttendancePanel({ subscribers, onRefresh }: AttendancePanelProps
           <div className="relative mb-3">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="ابحث بالاسم أو رقم الملف أو الهاتف..."
+              ref={searchInputRef}
+              autoFocus
+              placeholder="ابحث بالاسم أو رقم الملف أو الهاتف... (Enter يسجّل الحضور إذا تبقّت نتيجة واحدة)"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && filtered.length === 1) {
+                  const only = filtered[0];
+                  if (!presentIds.has(only.id)) handleManualCheckIn(only.id);
+                }
+              }}
               className="pr-10 h-10"
             />
           </div>

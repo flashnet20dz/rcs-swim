@@ -16,6 +16,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -97,6 +98,9 @@ export function CompensationsPanel() {
   const [newClosureOpen, setNewClosureOpen] = useState(false);
   const [scheduleTarget, setScheduleTarget] = useState<Compensation | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkScheduleOpen, setBulkScheduleOpen] = useState(false);
+  const [bulkActing, setBulkActing] = useState(false);
 
   const loadClosures = useCallback(async () => {
     setLoading(true);
@@ -122,6 +126,48 @@ export function CompensationsPanel() {
     .sort((a, b) => new Date(b.originalDate).getTime() - new Date(a.originalDate).getTime());
 
   const pendingCount = closures.flatMap((c) => c.compensations).filter((c) => c.status === "pending").length;
+
+  // التحديد الجماعي يشمل فقط الحالات القابلة للتصرف (pending/scheduled)
+  const selectableCompensations = allCompensations.filter((c) => c.status === "pending" || c.status === "scheduled");
+  const allSelected = selectableCompensations.length > 0 && selectableCompensations.every((c) => selectedIds.has(c.id));
+  const someSelected = selectedIds.size > 0;
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(selectableCompensations.map((c) => c.id)));
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const bulkCancel = async () => {
+    if (!confirm(`هل تريد إلغاء ${selectedIds.size} تعويض محدَّد؟`)) return;
+    setBulkActing(true);
+    try {
+      const res = await fetch("/api/compensations/bulk", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(selectedIds), action: "cancel" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success(`تم إلغاء ${data.cancelled} تعويض`);
+      setSelectedIds(new Set());
+      loadClosures();
+    } catch (e: any) {
+      toast.error(e?.message || "تعذّر الإلغاء الجماعي");
+    } finally {
+      setBulkActing(false);
+    }
+  };
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -154,8 +200,8 @@ export function CompensationsPanel() {
         </div>
       )}
 
-      {/* فلتر الحالة */}
-      <div className="flex items-center gap-2">
+      {/* فلتر الحالة + التحديد الجماعي */}
+      <div className="flex items-center gap-3 flex-wrap">
         <Label className="text-sm">الحالة:</Label>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-44">
@@ -168,7 +214,35 @@ export function CompensationsPanel() {
             ))}
           </SelectContent>
         </Select>
+
+        {selectableCompensations.length > 0 && (
+          <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+            <Checkbox checked={allSelected} onCheckedChange={toggleSelectAll} />
+            تحديد الكل ({selectableCompensations.length})
+          </label>
+        )}
       </div>
+
+      {/* شريط الإجراءات الجماعية */}
+      {someSelected && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2"
+        >
+          <Badge variant="secondary" className="text-xs">{selectedIds.size} محدَّد</Badge>
+          <Button size="sm" onClick={() => setBulkScheduleOpen(true)} disabled={bulkActing}>
+            <Clock className="h-3.5 w-3.5 ml-1" /> تعويض جماعي (نفس الحصة للجميع)
+          </Button>
+          <Button size="sm" variant="ghost" className="text-rose-600 hover:bg-rose-50" onClick={bulkCancel} disabled={bulkActing}>
+            {bulkActing ? <Loader2 className="h-3.5 w-3.5 animate-spin ml-1" /> : <XCircle className="h-3.5 w-3.5 ml-1" />}
+            إلغاء المحدَّد
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
+            إلغاء التحديد
+          </Button>
+        </motion.div>
+      )}
 
       {/* قائمة التعويضات */}
       <div className="space-y-3">
@@ -189,29 +263,38 @@ export function CompensationsPanel() {
               transition={{ delay: i * 0.02 }}
               className="rounded-xl border bg-card p-4 flex flex-wrap items-center justify-between gap-3"
             >
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold">
-                    {comp.subscriber.firstName} {comp.subscriber.lastName}
-                  </span>
-                  <Badge variant="outline" className="text-xs">{comp.subscriber.fileNumber}</Badge>
-                  <Badge className={cn("text-xs border", STATUS_COLORS[comp.status])}>
-                    {STATUS_LABELS[comp.status]}
-                  </Badge>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  الحصة الأصلية: {new Date(comp.originalDate).toLocaleDateString("ar")} —{" "}
-                  {comp.originalSwimmingDays || "—"} / {comp.originalTimeSlot || "—"}
-                  <span className="mx-1">·</span>
-                  سبب الإغلاق: {comp.closure.reason}
-                </p>
-                {comp.compensationDate && (
-                  <p className="text-xs text-emerald-700 flex items-center gap-1">
-                    <CalendarCheck className="h-3 w-3" />
-                    الحصة التعويضية: {new Date(comp.compensationDate).toLocaleDateString("ar")} —{" "}
-                    {comp.compensationTimeSlot}
-                  </p>
+              <div className="flex items-start gap-3 flex-1 min-w-0">
+                {(comp.status === "pending" || comp.status === "scheduled") && (
+                  <Checkbox
+                    checked={selectedIds.has(comp.id)}
+                    onCheckedChange={() => toggleSelectOne(comp.id)}
+                    className="mt-1 shrink-0"
+                  />
                 )}
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold">
+                      {comp.subscriber.firstName} {comp.subscriber.lastName}
+                    </span>
+                    <Badge variant="outline" className="text-xs">{comp.subscriber.fileNumber}</Badge>
+                    <Badge className={cn("text-xs border", STATUS_COLORS[comp.status])}>
+                      {STATUS_LABELS[comp.status]}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    الحصة الأصلية: {new Date(comp.originalDate).toLocaleDateString("ar")} —{" "}
+                    {comp.originalSwimmingDays || "—"} / {comp.originalTimeSlot || "—"}
+                    <span className="mx-1">·</span>
+                    سبب الإغلاق: {comp.closure.reason}
+                  </p>
+                  {comp.compensationDate && (
+                    <p className="text-xs text-emerald-700 flex items-center gap-1">
+                      <CalendarCheck className="h-3 w-3" />
+                      الحصة التعويضية: {new Date(comp.compensationDate).toLocaleDateString("ar")} —{" "}
+                      {comp.compensationTimeSlot}
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div className="flex items-center gap-2">
@@ -270,6 +353,38 @@ export function CompensationsPanel() {
             setScheduleTarget(null);
             loadClosures();
           }}
+        />
+      )}
+
+      {/* نافذة التعويض الجماعي */}
+      {bulkScheduleOpen && (
+        <BulkScheduleDialog
+          count={selectedIds.size}
+          onClose={() => setBulkScheduleOpen(false)}
+          onSubmit={async (payload) => {
+            setBulkActing(true);
+            try {
+              const res = await fetch("/api/compensations/bulk", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ids: Array.from(selectedIds), action: "schedule", ...payload }),
+              });
+              const data = await res.json();
+              if (!res.ok) {
+                toast.error(data.error || "تعذّر التعويض الجماعي");
+                return;
+              }
+              toast.success(`تم تحديد الحصة التعويضية لـ ${data.scheduled} منخرط(ة)`);
+              setBulkScheduleOpen(false);
+              setSelectedIds(new Set());
+              loadClosures();
+            } catch {
+              toast.error("تعذّر التعويض الجماعي");
+            } finally {
+              setBulkActing(false);
+            }
+          }}
+          submitting={bulkActing}
         />
       )}
     </div>
@@ -629,6 +744,87 @@ function ScheduleDialog({
           <Button onClick={submit} disabled={submitting}>
             {submitting ? <Loader2 className="h-4 w-4 animate-spin ml-1" /> : null}
             تأكيد الحصة التعويضية
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════
+// نافذة: التعويض الجماعي (نفس الحصة لكل المحدَّدين دفعة واحدة)
+// ═══════════════════════════════════════════════════════════
+function BulkScheduleDialog({
+  count,
+  onClose,
+  onSubmit,
+  submitting,
+}: {
+  count: number;
+  onClose: () => void;
+  onSubmit: (payload: { compensationDate: string; compensationSwimmingDays: string; compensationTimeSlot: string }) => void;
+  submitting: boolean;
+}) {
+  const [date, setDate] = useState("");
+  const [swimmingDays, setSwimmingDays] = useState<string>(SWIMMING_DAYS[0]);
+  const [timeSlot, setTimeSlot] = useState<string>(TIME_SLOTS[0]);
+
+  const submit = () => {
+    if (!date || !timeSlot) {
+      toast.error("التاريخ والتوقيت مطلوبان");
+      return;
+    }
+    onSubmit({ compensationDate: date, compensationSwimmingDays: swimmingDays, compensationTimeSlot: timeSlot });
+  };
+
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent dir="rtl" className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            تعويض جماعي — {count} منخرط(ة) محدَّدين
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <p className="text-xs text-muted-foreground bg-amber-50 border border-amber-200 rounded-md p-2">
+            سيتم تحديد <strong>نفس</strong> الحصة التعويضية التالية لكل الأشخاص المحدَّدين دفعة واحدة.
+            سيتحقق النظام من توفر مكان كافٍ للجميع قبل التأكيد — إذا السعة غير كافية، لن تُنفَّذ العملية إطلاقاً.
+          </p>
+          <div className="space-y-1.5">
+            <Label>تاريخ الحصة التعويضية *</Label>
+            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>مجموعة الأيام</Label>
+            <Select value={swimmingDays} onValueChange={setSwimmingDays}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {SWIMMING_DAYS.map((d) => (
+                  <SelectItem key={d} value={d}>{d}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>التوقيت *</Label>
+            <Select value={timeSlot} onValueChange={setTimeSlot}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {TIME_SLOTS.map((t) => (
+                  <SelectItem key={t} value={t}>{t}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>إلغاء</Button>
+          <Button onClick={submit} disabled={submitting}>
+            {submitting ? <Loader2 className="h-4 w-4 animate-spin ml-1" /> : null}
+            تأكيد التعويض الجماعي ({count})
           </Button>
         </DialogFooter>
       </DialogContent>
