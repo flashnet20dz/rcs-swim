@@ -9,12 +9,13 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
-  Loader2, Phone, MessageCircle, Calendar, Clock, Wallet, RefreshCw, Activity as ActivityIcon, AlertTriangle,
+  Loader2, Phone, MessageCircle, Calendar, Clock, Wallet, RefreshCw, Activity as ActivityIcon, AlertTriangle, FileSignature,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { notifyClick } from "@/lib/sounds";
 import type { SubscriberWithComputed } from "@/lib/rcs";
+import { ContractTab } from "@/components/contract-tab";
 
 interface RecordData {
   subscriber: {
@@ -163,6 +164,7 @@ export function SubscriberRecordModal({ subscriber, open, onOpenChange }: Subscr
                 <TabsTrigger value="renewals" className="flex-1"><RefreshCw className="h-3.5 w-3.5 ml-1" /> التجديدات</TabsTrigger>
                 <TabsTrigger value="attendance" className="flex-1"><Calendar className="h-3.5 w-3.5 ml-1" /> الحضور</TabsTrigger>
                 <TabsTrigger value="activity" className="flex-1"><ActivityIcon className="h-3.5 w-3.5 ml-1" /> النشاط</TabsTrigger>
+                <TabsTrigger value="contract" className="flex-1"><FileSignature className="h-3.5 w-3.5 ml-1" /> العقد</TabsTrigger>
               </TabsList>
 
               <TabsContent value="payments" className="mt-3 max-h-72 overflow-y-auto">
@@ -250,6 +252,15 @@ export function SubscriberRecordModal({ subscriber, open, onOpenChange }: Subscr
                       </div>
                     ))}
                   </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="contract" className="mt-3 max-h-72 overflow-y-auto">
+                {subscriber && (
+                  <ContractTab
+                    subscriberId={subscriber.id}
+                    subscriberName={`${subscriber.firstName} ${subscriber.lastName}`}
+                  />
                 )}
               </TabsContent>
             </Tabs>

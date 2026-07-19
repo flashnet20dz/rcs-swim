@@ -42,6 +42,8 @@ model Club {
   poolClosures    PoolClosure[]
   compensations   Compensation[]
   syncOutbox      SyncOutbox[]
+  waitlists           Waitlist[]
+  subscriberContracts SubscriberContract[]
   settings        Setting[]
   cashierPins     CashierPin[]
   subscriptionTypes SubscriptionType[]
@@ -133,6 +135,7 @@ model Subscriber {
   activities      Activity[]
   payments        Payment[]
   compensations   Compensation[]
+  contracts       SubscriberContract[]
 
   @@unique([clubId, fileNumber])
   @@index([clubId])
@@ -570,4 +573,54 @@ model SyncMeta {
   lastPullAt    DateTime?
   deviceId      String   @default(cuid())
   updatedAt     DateTime @updatedAt
+}
+
+// ═══════════════════════════════════════════════════════════
+// WAITLIST (قائمة الانتظار الذكية)
+// ═══════════════════════════════════════════════════════════
+model Waitlist {
+  id                String   @id @default(cuid())
+  clubId            String
+  club              Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  firstName         String
+  lastName          String
+  phone             String?
+  desiredSwimmingDays String
+  desiredTimeSlot   String
+
+  status            String   @default("waiting")   // waiting | notified | converted | cancelled
+  note              String?
+
+  convertedSubscriberId String?                      // إذا تحوّل لمشترك فعلي
+
+  notifiedAt        DateTime?
+  convertedAt       DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([clubId, status])
+  @@index([clubId, desiredSwimmingDays, desiredTimeSlot])
+}
+
+// ═══════════════════════════════════════════════════════════
+// SUBSCRIBER CONTRACTS (العقد الإلكتروني بتوقيع رقمي)
+// ═══════════════════════════════════════════════════════════
+model SubscriberContract {
+  id              String   @id @default(cuid())
+  clubId          String
+  club            Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  subscriberId    String
+  subscriber      Subscriber @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+
+  contractText    String     // نص الشروط والأحكام وقت التوقيع (لقطة، حتى لو تغيّر النص لاحقاً)
+  signerName      String     // اسم الموقّع (المشترك أو ولي أمره)
+  signatureImage  String     // Base64 PNG لصورة التوقيع المرسومة
+  signedAt        DateTime   @default(now())
+  ipAddress       String?
+
+  status          String   @default("signed")  // signed | revoked
+  createdAt       DateTime @default(now())
+
+  @@index([clubId, subscriberId])
 }

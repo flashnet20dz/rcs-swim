@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { computeSubscriberFields } from "@/lib/rcs";
 import { getCurrentUser } from "@/lib/session";
 import { recordSyncOutbox } from "@/lib/sync-outbox";
+import { checkWaitlistPromotion } from "@/lib/waitlist";
 
 export async function GET(
   _req: NextRequest,
@@ -133,6 +134,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       payload: subscriber,
     });
 
+    // إذا تغيّرت حصة المنخرط (أو انتهى اشتراكه) — الحصة القديمة تحرّرت مكاناً محتملاً
+    const slotChanged =
+      existing.swimmingDays !== subscriber.swimmingDays || existing.timeSlot !== subscriber.timeSlot;
+    if (slotChanged) {
+      await checkWaitlistPromotion(existing.clubId, existing.swimmingDays, existing.timeSlot);
+    }
+
     const fields = computeSubscriberFields(subscriber);
     return NextResponse.json({ subscriber: { ...subscriber, ...fields } });
   } catch (error) {
@@ -171,6 +179,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
       operation: "delete",
       payload: { id: sub.id, clubId: sub.clubId },
     });
+
+    await checkWaitlistPromotion(sub.clubId, sub.swimmingDays, sub.timeSlot);
 
     return NextResponse.json({ success: true });
   } catch (error) {

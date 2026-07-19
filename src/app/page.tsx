@@ -7,7 +7,7 @@ import {
   RefreshCw, Calendar, Droplet, Clock, Activity, Crown, Sparkles, Waves as WavesIcon,
   QrCode, Download, Settings as SettingsIcon, LogOut, Moon, Sun, ChevronLeft,
   UserCheck, RefreshCcw, FileText, Bell, Zap, Award, Pencil, Trash2,
-  CreditCard, Inbox, UserCog, Database, Layers, Menu, CalendarOff,
+  CreditCard, Inbox, UserCog, Database, Layers, Menu, CalendarOff, ListPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +50,7 @@ import { CardsPanel } from "@/components/cards-panel";
 import { CardsDesigner } from "@/components/cards-designer";
 import { InsurancePanel } from "@/components/insurance-panel";
 import { CompensationsPanel } from "@/components/compensations-panel";
+import { WaitlistPanel } from "@/components/waitlist-panel";
 import { useSubscriptionTypes } from "@/hooks/use-subscription-types";
 import { ContractsPanel } from "@/components/contracts-panel";
 
@@ -438,6 +439,7 @@ export default function Home() {
                  activeTab === "attendance" ? "الحضور" :
                  activeTab === "renewals" ? "التجديد" :
                  activeTab === "compensations" ? "التعويضات" :
+                 activeTab === "waitlist" ? "قائمة الانتظار" :
                  activeTab === "workhours" ? "ساعات العمل" :
                  activeTab === "insurance" ? "التأمين" :
                  activeTab === "categories" ? "الفئات" :
@@ -486,6 +488,11 @@ export default function Home() {
               {hasPermission(sessionUser.role, "renewals") && (
                 <TabsTrigger value="compensations" className="gap-1 px-2 sm:px-4 py-1.5 text-xs sm:text-sm whitespace-nowrap">
                   <CalendarOff className="h-4 w-4" /> التعويضات
+                </TabsTrigger>
+              )}
+              {hasPermission(sessionUser.role, "renewals") && (
+                <TabsTrigger value="waitlist" className="gap-1 px-2 sm:px-4 py-1.5 text-xs sm:text-sm whitespace-nowrap">
+                  <ListPlus className="h-4 w-4" /> الانتظار
                 </TabsTrigger>
               )}
               {hasPermission(sessionUser.role, "subscribers") && (
@@ -948,6 +955,10 @@ export default function Home() {
             <CompensationsPanel />
           </TabsContent>
 
+          <TabsContent value="waitlist" className="mt-0">
+            <WaitlistPanel />
+          </TabsContent>
+
           {/* INSURANCE TAB */}
           {hasPermission(sessionUser.role, "subscribers") && (
             <TabsContent value="insurance" className="mt-0">
@@ -1137,6 +1148,14 @@ export default function Home() {
                 label="التعويضات"
                 active={activeTab === "compensations"}
                 onClick={() => { setActiveTab("compensations"); setMobileNavOpen(false); }}
+              />
+            )}
+            {hasPermission(sessionUser.role, "renewals") && (
+              <MobileNavItem
+                icon={ListPlus}
+                label="قائمة الانتظار"
+                active={activeTab === "waitlist"}
+                onClick={() => { setActiveTab("waitlist"); setMobileNavOpen(false); }}
               />
             )}
             {hasPermission(sessionUser.role, "subscribers") && (
