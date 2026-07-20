@@ -63,7 +63,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ user: { id: user.id, email: user.email, name: user.name, role: user.role } });
   } catch (e) {
     console.error("Login error:", e);
-    const errMsg = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
-    return NextResponse.json({ error: "خطأ داخلي في الخادم", debug: errMsg }, { status: 500 });
+    return NextResponse.json({ error: "خطأ داخلي في الخادم" }, { status: 500 });
   }
 }
