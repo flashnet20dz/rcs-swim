@@ -70,6 +70,7 @@ import {
   getAgeCategory,
   type SubscriberWithComputed,
 } from "@/lib/rcs";
+import { SubscriptionGate } from "@/components/subscription-gate";
 
 interface Stats {
   total: number;
@@ -347,6 +348,7 @@ export default function Home() {
   const isAdmin = sessionUser.role === "admin";
 
   return (
+    <SubscriptionGate>
     <div
       className="min-h-screen bg-gradient-to-b from-background via-background to-muted/30 flex flex-col"
       style={{ "--theme-primary": themePrimary, "--theme-secondary": themeSecondary } as React.CSSProperties}
@@ -1390,6 +1392,7 @@ export default function Home() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </SubscriptionGate>
   );
 }
 

@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { ActivationCodesPanel } from "@/components/activation-codes-panel";
 
 interface Club {
   id: string;
@@ -69,6 +70,7 @@ export default function SuperAdminPage() {
   const [subAction, setSubAction] = useState("renew");
   const [subType, setSubType] = useState("monthly");
   const [subMonths, setSubMonths] = useState(1);
+  const [codesPanelOpen, setCodesPanelOpen] = useState(false);
 
   const fetchClubs = useCallback(async () => {
     setLoading(true);
@@ -151,6 +153,9 @@ export default function SuperAdminPage() {
             <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30">SuperAdmin</Badge>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setCodesPanelOpen(true)} className="h-9 border-primary/30 bg-primary/5 text-primary hover:bg-primary/10">
+              <KeyRound className="h-4 w-4 ml-1" /> أكواد التفعيل
+            </Button>
             <Button variant="ghost" size="icon" onClick={fetchClubs} className="h-9 w-9">
               <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
             </Button>
@@ -300,6 +305,9 @@ export default function SuperAdminPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Activation Codes Management Panel */}
+      <ActivationCodesPanel open={codesPanelOpen} onClose={() => setCodesPanelOpen(false)} />
     </div>
   );
 }

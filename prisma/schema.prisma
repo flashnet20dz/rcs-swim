@@ -30,6 +30,12 @@ model Club {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  // ─── Trial & Subscription state ───
+  trialStartedAt  DateTime?                         // بداية التجربة المجانية (عند الموافقة)
+  trialEndDate    DateTime?                         // نهاية التجربة (7-15 يوم من الموافقة)
+  graceEndDate    DateTime?                         // نهاية فترة السماح (أسبوع بعد انتهاء الاشتراك)
+  hardwareFingerprint String?                       // بصمة الجهاز (لمنع النسخ لجهاز آخر)
+
   // Relations
   users           User[]
   subscribers     Subscriber[]
@@ -54,6 +60,7 @@ model Club {
   employees       Employee[]
   contracts       EmploymentContract[]
   contractTemplates ContractTemplate[]
+  activationCodes ActivationCode[]                  // الأكواد المُفعَّلة لهذا النادي
 }
 
 // Club subscription (اشتراك النادي)
@@ -89,6 +96,58 @@ model SubscriptionHistory {
   createdAt       DateTime @default(now())
 
   @@index([subscriptionId])
+}
+
+// ═══════════════════════════════════════════════════════════
+// ACTIVATION CODES SYSTEM (نظام أكواد التفعيل المشفّرة)
+// ═══════════════════════════════════════════════════════════
+// أكواد موقّعة رقمياً (HMAC-SHA256) — تعمل أوفلاين 100%
+// التحقق يتم محلياً بالرياضيات، التسجيل في DB يمنع إعادة الاستخدام
+
+// Batch (دفعة توليد) — لتتبع من/متى ولّد الأكواد
+model CodeBatch {
+  id              String   @id @default(cuid())
+  batchNo         Int       @unique                 // رقم الدفعة التسلسلي
+  name            String?                           // اسم وصفي (اختياري)
+  plan            String                            // monthly/quarterly/halfyear/yearly/twoyear
+  count           Int                               // عدد الأكواد في الدفعة
+  generatedById   String?                           // SuperAdmin ID
+  generatedBy     User?     @relation(fields: [generatedById], references: [id], onDelete: SetNull)
+  createdAt       DateTime @default(now())
+  notes           String?
+
+  codes           ActivationCode[]
+
+  @@index([plan])
+}
+
+// Activation Code (كود التفعيل)
+model ActivationCode {
+  id              String   @id @default(cuid())
+  code            String   @unique                 // الكود الكامل: AQCR-XXXX-XXXX-XXXX
+  codeHash        String   @unique                 // SHA256(code) للبحث السريع بدون كشف الكود
+  batchId         String
+  batch           CodeBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  plan            String                            // monthly/quarterly/halfyear/yearly/twoyear
+  durationDays    Int                               // عدد الأيام (30/90/180/365/730)
+  status          String   @default("unused")       // unused/used/revoked/expired
+  // ─── عند التفعيل ───
+  clubId          String?
+  club            Club?     @relation(fields: [clubId], references: [id], onDelete: SetNull)
+  activatedAt     DateTime?
+  activatedById   String?                           // المستخدم الذي فعّل
+  hardwareFingerprint String?                       // بصمة الجهاز عند التفعيل (منع النسخ)
+  expiresAt       DateTime?                         // تاريخ انتهاء الاشتراك الناتج
+  // ─── التدقيق ───
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  revokedAt       DateTime?
+  revokedReason   String?
+
+  @@index([batchId])
+  @@index([status])
+  @@index([clubId])
+  @@index([plan])
 }
 
 // Club registration request (طلب تسجيل نادي جديد)
@@ -202,6 +261,7 @@ model User {
   payments        Payment[]
   sessions        Session[]
   employees       Employee[]
+  codeBatches     CodeBatch[]                       // الدفعات التي ولّدها هذا المستخدم
 }
 
 model WorkHours {

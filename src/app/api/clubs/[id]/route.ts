@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session";
+import { startTrial } from "@/lib/subscription-state";
 
 /**
  * PATCH /api/clubs/[id] — SuperAdmin: update club status
@@ -18,38 +19,29 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const { id } = await params;
     const body = await req.json();
 
-    // Approve club
+    // Approve club — يبدأ فترة تجربة مجانية (7 أيام) بدلاً من اشتراك شهري مجاني
     if (body.action === "approve") {
+      const now = new Date();
+      const trial = startTrial(now, 7); // 7 أيام تجربة مجانية
+
       const club = await db.club.update({
         where: { id },
-        data: { status: "active" },
+        data: {
+          status: "active",
+          trialStartedAt: trial.trialStartedAt,
+          trialEndDate: trial.trialEndDate,
+        },
       });
 
-      // Create monthly subscription by default
-      const now = new Date();
-      const endDate = new Date(now);
-      endDate.setMonth(endDate.getMonth() + 1);
-
-      const sub = await db.clubSubscription.create({
+      // لا ننشئ ClubSubscription — النادي في فترة تجربة حتى يفعّل كوداً
+      // سجّل حدثاً في النشاطات (إن وُجد جدول الأنشطة)
+      await db.activity.create({
         data: {
           clubId: club.id,
-          type: "monthly",
-          startDate: now,
-          endDate,
-          status: "active",
-          lastRenewalDate: now,
+          type: "create",
+          description: `تمت الموافقة على النادي — بدأت فترة تجربة مجانية لمدة 7 أيام (تنتهي في ${trial.trialEndDate.toLocaleDateString("ar-DZ")})`,
         },
-      });
-
-      await db.subscriptionHistory.create({
-        data: {
-          subscriptionId: sub.id,
-          action: "created",
-          newType: "monthly",
-          newEndDate: endDate,
-          note: "تم التفعيل بواسطة SuperAdmin",
-        },
-      });
+      }).catch(() => {/* تجاهل إن لم يُنشأ */});
 
       // Update request status
       await db.clubRequest.updateMany({
@@ -57,7 +49,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         data: { status: "approved", reviewedBy: currentUser.id, reviewedAt: now },
       });
 
-      return NextResponse.json({ success: true, club, subscription: sub });
+      return NextResponse.json({
+        success: true,
+        club,
+        trial: {
+          startedAt: trial.trialStartedAt,
+          endDate: trial.trialEndDate,
+          daysRemaining: 7,
+        },
+      });
     }
 
     // Reject club
