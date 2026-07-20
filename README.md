@@ -25,3 +25,5 @@ npm run electron:build
 ## الوثائق
 - [دليل التثبيت المفصل](INSTALLATION.md)
 - [دليل النشر على Vercel + Supabase](DEPLOYMENT.md)
+
+<!-- trigger redeploy: fix commit author identity -->
