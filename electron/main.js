@@ -17,6 +17,7 @@ const path = require("path");
 const fs = require("fs");
 const desktopSettings = require("./desktop-settings");
 const syncEngine = require("./sync-engine");
+const license = require("./license");
 let mainWindow = null;
 let splashWindow = null;
 // وضع العمل: Hybrid — يعمل offline و online
@@ -283,6 +284,33 @@ function createSplash() {
 // ═══════════════════════════════════════════════════════════
 // النافذة الرئيسية
 // ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// الترخيص والتجربة المجانية (Offline License) — AquaCore
+// ═══════════════════════════════════════════════════════════
+function ensureTrialInitialized() {
+    if (!desktopSettings.getSetting("trialStartedAt") && !desktopSettings.getSetting("subscriptionEndDate")) {
+        const now = new Date();
+        const trialEnd = new Date(now.getTime() + license.TRIAL_DAYS * 24 * 60 * 60 * 1000);
+        desktopSettings.setSetting("trialStartedAt", now.toISOString());
+        desktopSettings.setSetting("trialEndDate", trialEnd.toISOString());
+        console.log("[License] Trial initialized, ends:", trialEnd.toISOString());
+    }
+}
+
+function computeLocalLicenseStatus() {
+    const settings = desktopSettings.getAllSettings();
+
+    // حماية من نسخ التفعيل لجهاز آخر
+    if (settings.hardwareFingerprint) {
+        const current = license.generateHardwareFingerprint();
+        if (current !== settings.hardwareFingerprint) {
+            return { state: "locked", hasAccess: false, reason: "device-mismatch" };
+        }
+    }
+
+    return license.computeLocalSubscriptionStatus(settings);
+}
+
 function createWindow() {
     // استرجاع آخر حجم وموقع للنافذة
     const settings = desktopSettings.getAllSettings();
@@ -317,10 +345,12 @@ function createWindow() {
         if (windowState.isMaximized)
             mainWindow.maximize();
     });
-    // تحميل التطبيق — Hybrid mode
-    // إذا كان الخادم المحلي يعمل → استخدمه (offline)
-    // وإلا → حمّل من السحابة (online)
-    if (usingLocal) {
+    // تحميل التطبيق — تحقق أولاً من حالة الترخيص
+    const licenseStatus = computeLocalLicenseStatus();
+    if (!licenseStatus.hasAccess) {
+        console.log("[License] Locked (" + licenseStatus.state + ") — showing activation screen");
+        mainWindow.loadFile(path.join(__dirname, "activation.html"));
+    } else if (usingLocal) {
         console.log("[Window] Loading from local server:", LOCAL_URL);
         mainWindow.loadURL(LOCAL_URL);
     }
@@ -602,6 +632,56 @@ ipcMain.handle("auto-backup", async () => {
 });
 
 // ═══════════════════════════════════════════════════════════
+// الترخيص والتفعيل (License / Activation) — AquaCore
+// ═══════════════════════════════════════════════════════════
+ipcMain.handle("license:get-status", async () => {
+    const status = computeLocalLicenseStatus();
+    return { ...status, plan: desktopSettings.getSetting("subscriptionPlan") };
+});
+
+ipcMain.handle("license:redeem", async (event, code) => {
+    const result = license.verifyCode(code);
+    if (!result.valid) {
+        return { success: false, error: result.error || "الكود غير صالح" };
+    }
+
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + result.durationDays * 24 * 60 * 60 * 1000);
+    const fingerprint = license.generateHardwareFingerprint();
+
+    desktopSettings.setSetting("subscriptionPlan", result.plan);
+    desktopSettings.setSetting("subscriptionEndDate", expiresAt.toISOString());
+    desktopSettings.setSetting("graceEndDate", null);
+    desktopSettings.setSetting("activationCode", code);
+    desktopSettings.setSetting("hardwareFingerprint", fingerprint);
+
+    // سجّل بـ Outbox المزامنة حتى يُبلَّغ للسحابة عند توفر الإنترنت
+    // (يكشف استخدام نفس الكود بجهازين مختلفين لاحقاً)
+    try {
+        const { PrismaClient } = require("@prisma/client");
+        const prisma = new PrismaClient();
+        await prisma.syncOutbox.create({
+            data: {
+                modelName: "activationCode",
+                recordId: code,
+                operation: "create",
+                payload: JSON.stringify({
+                    code, plan: result.plan, hardwareFingerprint: fingerprint,
+                    activatedAt: now.toISOString(), expiresAt: expiresAt.toISOString(),
+                }),
+            },
+        }).catch(() => {});
+    } catch { /* تجاهل — outbox اختياري، ما يوقف التفعيل المحلي */ }
+
+    if (mainWindow) {
+        if (usingLocal) mainWindow.loadURL(LOCAL_URL);
+        else mainWindow.loadURL(CLOUD_URL);
+    }
+
+    return { success: true, plan: result.plan, planLabel: result.planLabel, expiresAt: expiresAt.toISOString() };
+});
+
+// ═══════════════════════════════════════════════════════════
 // المزامنة مع السحابة (Sync)
 // ═══════════════════════════════════════════════════════════
 ipcMain.handle("sync-now", async () => {
@@ -718,6 +798,8 @@ else {
     app.whenReady().then(async () => {
         // التأكد من وجود المجلدات
         desktopSettings.ensureDirectories();
+        // تهيئة الفترة التجريبية عند أول تشغيل
+        ensureTrialInitialized();
         // إنشاء splash screen
         createSplash();
         // ═══ محاولة بدء خادم Next.js محلي (للعمل offline) ═══

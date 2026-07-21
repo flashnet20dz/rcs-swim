@@ -45,6 +45,15 @@ const DEFAULT_SETTINGS = {
   syncEnabled: true,
   lastSyncStatus: "idle",
   lastSyncAt: null,
+
+  // الترخيص والاشتراك (Offline License) — AquaCore
+  trialStartedAt: null,
+  trialEndDate: null,
+  subscriptionPlan: null,
+  subscriptionEndDate: null,
+  graceEndDate: null,
+  activationCode: null,
+  hardwareFingerprint: null,
 };
 
 let cachedSettings = null;

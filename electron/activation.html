@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>تفعيل الاشتراك — AquaCore</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+    background: linear-gradient(135deg, #0c4a6e, #082f49);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #e2e8f0;
+  }
+  .card {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 20px;
+    padding: 36px;
+    max-width: 420px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  }
+  .icon {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    background: #7f1d1d;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 16px;
+    font-size: 28px;
+  }
+  h1 { font-size: 18px; margin-bottom: 4px; }
+  .brand { color: #38bdf8; font-size: 12px; letter-spacing: 2px; margin-bottom: 12px; }
+  p { color: #94a3b8; font-size: 13px; line-height: 1.7; margin-bottom: 20px; }
+  input {
+    width: 100%;
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid #1e293b;
+    background: #020617;
+    color: #e2e8f0;
+    text-align: center;
+    font-family: monospace;
+    font-size: 15px;
+    letter-spacing: 1px;
+    direction: ltr;
+    margin-bottom: 12px;
+  }
+  input:focus { outline: none; border-color: #38bdf8; }
+  button {
+    width: 100%;
+    padding: 12px;
+    border-radius: 10px;
+    border: none;
+    background: #0ea5e9;
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  button:hover { opacity: 0.9; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .msg { font-size: 13px; margin-top: 12px; min-height: 18px; }
+  .msg.error { color: #f87171; }
+  .msg.success { color: #34d399; }
+  .hint { font-size: 11px; color: #64748b; margin-top: 16px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">🔒</div>
+    <div class="brand">AQUACORE</div>
+    <h1 id="title">انتهت الفترة التجريبية</h1>
+    <p id="subtitle">أدخل كود التفعيل للمتابعة باستخدام النظام أوفلاين. تواصل مع الجهة المزوّدة للحصول على كود.</p>
+    <input id="codeInput" placeholder="AQCR-M1-XXXXXXXX-XXXX" maxlength="24" autofocus>
+    <button id="submitBtn">تفعيل</button>
+    <div id="msg" class="msg"></div>
+    <p class="hint">هذا التفعيل يعمل بدون إنترنت — يتحقق من الكود محلياً بالكامل.</p>
+  </div>
+
+  <script>
+    const input = document.getElementById("codeInput");
+    const btn = document.getElementById("submitBtn");
+    const msg = document.getElementById("msg");
+
+    input.addEventListener("input", () => { input.value = input.value.toUpperCase(); });
+
+    async function submit() {
+      const code = input.value.trim();
+      if (!code) {
+        msg.textContent = "أدخل كود التفعيل";
+        msg.className = "msg error";
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = "جاري التحقق...";
+      msg.textContent = "";
+
+      try {
+        const result = await window.electronAPI.redeemLicenseCode(code);
+        if (result.success) {
+          msg.textContent = "✓ تم التفعيل بنجاح — " + (result.planLabel || result.plan);
+          msg.className = "msg success";
+          btn.textContent = "جاري إعادة التحميل...";
+        } else {
+          msg.textContent = result.error || "الكود غير صالح";
+          msg.className = "msg error";
+          btn.disabled = false;
+          btn.textContent = "تفعيل";
+        }
+      } catch (e) {
+        msg.textContent = "حدث خطأ، حاول مرة أخرى";
+        msg.className = "msg error";
+        btn.disabled = false;
+        btn.textContent = "تفعيل";
+      }
+    }
+
+    btn.addEventListener("click", submit);
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+  </script>
+</body>
+</html>

@@ -55,6 +55,9 @@ contextBridge.exposeInMainWorld("electronAPI", {
     onSyncStatusChanged: (callback) => {
         ipcRenderer.on("sync-status-changed", (_event, status) => callback(status));
     },
+    // ─── الترخيص والتفعيل (License) ───
+    getLicenseStatus: () => ipcRenderer.invoke("license:get-status"),
+    redeemLicenseCode: (code) => ipcRenderer.invoke("license:redeem", code),
     // ─── التحديثات (مُعطّل الآن — جاهز للمستقبل) ───
     checkForUpdates: () => ipcRenderer.invoke("check-for-updates"),
     downloadUpdate: () => ipcRenderer.invoke("download-update"),
