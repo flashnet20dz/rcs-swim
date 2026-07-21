@@ -21,6 +21,9 @@ files:
   - "electron/desktop-settings.js"
   - "electron/splash.html"
   - "electron/auto-updater.js"
+  - "electron/license.js"
+  - "electron/sync-engine.js"
+  - "electron/activation.html"
   # Next.js Standalone server + dependencies
   - ".next/standalone/**/*"
   # ملفات static (CSS, JS chunks, fonts)
