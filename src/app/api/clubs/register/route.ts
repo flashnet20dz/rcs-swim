@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
+import { startTrial } from "@/lib/subscription-state";
 
 /**
  * POST /api/clubs/register
@@ -35,7 +36,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "هذا البريد مرتبط بنادٍ آخر" }, { status: 409 });
     }
 
-    // Create club
+    // Create club — تبدأ الفترة التجريبية فوراً عند التسجيل (7 أيام)
+    // بدل انتظار موافقة السوبر-أدمن، حتى يشوف النادي التجربة مباشرة
+    const trial = startTrial();
     const club = await db.club.create({
       data: {
         name: clubName,
@@ -45,6 +48,8 @@ export async function POST(req: NextRequest) {
         phone,
         email: email.toLowerCase().trim(),
         status: "pending",
+        trialStartedAt: trial.trialStartedAt,
+        trialEndDate: trial.trialEndDate,
       },
     });
 

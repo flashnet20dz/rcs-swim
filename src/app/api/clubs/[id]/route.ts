@@ -19,27 +19,30 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const { id } = await params;
     const body = await req.json();
 
-    // Approve club — يبدأ فترة تجربة مجانية (7 أيام) بدلاً من اشتراك شهري مجاني
+    // Approve club — التجربة المجانية بدأت أصلاً عند التسجيل، هنا فقط
+    // نفعّل حالة النادي. لو (لأي سبب) ما كانت التجربة مضبوطة من قبل
+    // (نوادٍ قديمة قبل هذا التعديل)، نبدأها الآن كحل احتياطي.
     if (body.action === "approve") {
       const now = new Date();
-      const trial = startTrial(now, 7); // 7 أيام تجربة مجانية
+      const existingClub = await db.club.findUnique({ where: { id } });
+      const needsTrialFallback = !existingClub?.trialStartedAt && !existingClub?.subscriptionEndDate;
+      const trial = needsTrialFallback ? startTrial(now, 7) : null;
 
       const club = await db.club.update({
         where: { id },
         data: {
           status: "active",
-          trialStartedAt: trial.trialStartedAt,
-          trialEndDate: trial.trialEndDate,
+          ...(trial ? { trialStartedAt: trial.trialStartedAt, trialEndDate: trial.trialEndDate } : {}),
         },
       });
 
-      // لا ننشئ ClubSubscription — النادي في فترة تجربة حتى يفعّل كوداً
-      // سجّل حدثاً في النشاطات (إن وُجد جدول الأنشطة)
       await db.activity.create({
         data: {
           clubId: club.id,
           type: "create",
-          description: `تمت الموافقة على النادي — بدأت فترة تجربة مجانية لمدة 7 أيام (تنتهي في ${trial.trialEndDate.toLocaleDateString("ar-DZ")})`,
+          description: trial
+            ? `تمت الموافقة على النادي — بدأت فترة تجربة مجانية لمدة 7 أيام (تنتهي في ${trial.trialEndDate.toLocaleDateString("ar-DZ")})`
+            : `تمت الموافقة على النادي`,
         },
       }).catch(() => {/* تجاهل إن لم يُنشأ */});
 
@@ -52,11 +55,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json({
         success: true,
         club,
-        trial: {
-          startedAt: trial.trialStartedAt,
-          endDate: trial.trialEndDate,
-          daysRemaining: 7,
-        },
+        trial: club.trialEndDate ? {
+          startedAt: club.trialStartedAt,
+          endDate: club.trialEndDate,
+        } : null,
       });
     }
 

@@ -71,6 +71,7 @@ import {
   type SubscriberWithComputed,
 } from "@/lib/rcs";
 import { SubscriptionGate } from "@/components/subscription-gate";
+import { SubscriptionBadge } from "@/components/subscription-badge";
 
 interface Stats {
   total: number;
@@ -379,6 +380,7 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2">
+            {sessionUser.role !== "superadmin" && <SubscriptionBadge />}
             <ThemeToggle />
             <SyncIndicator />
             <NotificationBell />

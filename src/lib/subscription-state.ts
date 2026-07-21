@@ -84,18 +84,35 @@ export function computeSubscriptionStatus(
     };
   }
 
-  // 2) النادي بانتظار الموافقة
+  const now = new Date();
+
+  // 2) النادي بانتظار الموافقة — لكن لو عنده تجربة مجانية سارية (تبدأ من
+  //    لحظة التسجيل مباشرة)، يُسمح له بالوصول أثناءها رغم انتظار الموافقة
   if (club.status === "pending") {
+    if (club.trialEndDate) {
+      const trialEnd = new Date(club.trialEndDate);
+      if (trialEnd > now) {
+        const days = daysBetween(now, trialEnd);
+        return {
+          state: "trial",
+          label: "فترة تجريبية",
+          color: "bg-sky-500/15 text-sky-700 border-sky-500/30",
+          startDate: club.trialStartedAt ? new Date(club.trialStartedAt) : undefined,
+          endDate: trialEnd,
+          daysRemaining: days,
+          hasAccess: true,
+          message: `أنت بفترة تجريبية مجانية — ${days} يوم متبقٍ. حسابك بانتظار المراجعة النهائية بالتوازي.`,
+        };
+      }
+    }
     return {
       state: "pending",
       label: "بانتظار الموافقة",
       color: "bg-amber-500/15 text-amber-700 border-amber-500/30",
       hasAccess: false,
-      message: "حسابك بانتظار موافقة الإدارة. سيتم تفعيل التجربة المجانية فور الموافقة.",
+      message: "انتهت فترتك التجريبية وحسابك لا يزال بانتظار موافقة الإدارة. تواصل مع الدعم.",
     };
   }
-
-  const now = new Date();
 
   // 3) اشتراك نشط ساري
   if (activeSubscription && activeSubscription.status === "active" && activeSubscription.endDate) {
