@@ -324,7 +324,7 @@ function createWindow() {
         y: windowState.y,
         minWidth: 1024,
         minHeight: 700,
-        title: "نادي RCS — منظومة إدارة الاشتراكات",
+        title: "AquaCore Club Manager — منظومة إدارة الاشتراكات",
         icon: path.join(__dirname, "..", "public", "images", "rcs-logo-official.png"),
         webPreferences: {
             preload: path.join(__dirname, "preload.js"),
@@ -500,9 +500,9 @@ function buildMenu() {
                     click: () => {
                         dialog.showMessageBox(mainWindow, {
                             type: "info",
-                            title: "عن نادي RCS",
-                            message: "نادي RCS — منظومة إدارة الاشتراكات",
-                            detail: `الإصدار ${app.getVersion()}\nالنادي الهاوي متعدد الرياضات\nالرائد - سعيدة\nفرع السباحة\n\nيعمل أوفلاين (SQLite) وسحابياً (PostgreSQL)`,
+                            title: "عن AquaCore Club Manager",
+                            message: "AquaCore Club Manager — منظومة إدارة الاشتراكات والسباحة",
+                            detail: `الإصدار ${app.getVersion()}\n\nيعمل أوفلاين (SQLite) وسحابياً (PostgreSQL)`,
                             buttons: ["حسناً"],
                         });
                     },

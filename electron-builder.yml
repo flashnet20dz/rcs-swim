@@ -1,11 +1,11 @@
 # ═══════════════════════════════════════════════════════════
-# RCS Club Desktop — Hybrid (Offline + Online) Builder Config
+# AquaCore Club Manager — Hybrid (Offline + Online) Builder Config
 # Next.js Standalone + Electron + Prisma + SQLite
 # ═══════════════════════════════════════════════════════════
 
-appId: com.rcs.club
-productName: "RCS Club"
-copyright: "Copyright © 2026 RCS Club Management System"
+appId: com.aquacore.clubmanager
+productName: "AquaCore Club Manager"
+copyright: "Copyright © 2026 AquaCore Club Manager"
 
 directories:
   output: dist
@@ -14,6 +14,17 @@ directories:
 # ═══ ملفات داخل asar ═══
 # نستخدم بنية Next.js Standalone: .next/standalone/ يحتوي على كل ما يلزم
 asar: true
+
+# ⚠️ مهم جداً: محرك Prisma (query engine) ملف ثنائي (binary) لا يمكن
+# تشغيله من داخل أرشيف asar المضغوط. لازم يُستثنى (unpack) لمجلد
+# app.asar.unpacked/ وإلا يفشل التطبيق بخطأ "Cannot find module
+# '.prisma/client/default'" عند أول استخدام لقاعدة البيانات.
+asarUnpack:
+  - "node_modules/@prisma/**/*"
+  - "node_modules/.prisma/**/*"
+  - ".next/standalone/node_modules/@prisma/**/*"
+  - ".next/standalone/node_modules/.prisma/**/*"
+
 files:
   # ملفات Electron
   - "electron/main.js"
@@ -72,17 +83,17 @@ nsis:
   perMachine: true
   allowElevation: true
   allowToChangeInstallationDirectory: true
-  shortcutName: "RCS Club"
+  shortcutName: "AquaCore Club Manager"
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  menuCategory: "RCS Club"
+  menuCategory: "AquaCore Club Manager"
   installerIcon: "public/images/icon.ico"
   uninstallerIcon: "public/images/icon.ico"
   installerHeaderIcon: "public/images/icon.ico"
   installerLanguages:
     - en_US
   runAfterFinish: true
-  uninstallDisplayName: "RCS Club"
+  uninstallDisplayName: "AquaCore Club Manager"
   deleteAppDataOnUninstall: false
   license: "LICENSE"
   differentialPackage: true

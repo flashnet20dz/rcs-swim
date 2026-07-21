@@ -2,7 +2,7 @@
   "name": "rcs-club-desktop",
   "version": "1.0.0",
   "private": true,
-  "description": "نادي RCS — منظومة إدارة الاشتراكات والسباحة",
+  "description": "AquaCore Club Manager — منظومة إدارة الاشتراكات والسباحة",
   "author": "نادي RCS",
   "main": "electron/main.js",
   "scripts": {
