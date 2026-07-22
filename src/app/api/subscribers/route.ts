@@ -22,6 +22,11 @@ export async function GET(req: NextRequest) {
     const gender = url.searchParams.get("gender") || "";
     const renewalStatus = url.searchParams.get("renewalStatus") || "";
 
+    // 🔒 Pagination: افتراضي 100، حد أقصى 500 لكل صفحة
+    const page = Math.max(1, parseInt(url.searchParams.get("page") || "1"));
+    const limit = Math.min(500, Math.max(1, parseInt(url.searchParams.get("limit") || "100")));
+    const skip = (page - 1) * limit;
+
     const where: Record<string, unknown> = currentUser.role === "superadmin" ? {} : { clubId: currentUser.clubId };
     if (search) {
       where.OR = [
@@ -35,10 +40,16 @@ export async function GET(req: NextRequest) {
     if (subscriptionType) where.subscriptionType = subscriptionType;
     if (gender) where.gender = gender;
 
-    const subscribers = await db.subscriber.findMany({
-      where,
-      orderBy: { createdAt: "asc" },
-    });
+    // 🔒 Pagination: اجلب العدد الإجمالي + الصفحة الحالية
+    const [subscribers, total] = await Promise.all([
+      db.subscriber.findMany({
+        where,
+        orderBy: { createdAt: "asc" },
+        take: limit,
+        skip,
+      }),
+      db.subscriber.count({ where }),
+    ]);
 
     const computed = subscribers.map((s) => ({
       ...s,
@@ -56,7 +67,16 @@ export async function GET(req: NextRequest) {
       filtered = computed.filter((s) => s.renewalStatus === "🔒 مجمدة");
     }
 
-    return NextResponse.json({ subscribers: filtered });
+    return NextResponse.json({
+      subscribers: filtered,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasMore: skip + subscribers.length < total,
+      },
+    });
   } catch (error) {
     console.error("GET /api/subscribers error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

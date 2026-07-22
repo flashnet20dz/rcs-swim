@@ -8,6 +8,7 @@ import {
   PLANS,
 } from "@/lib/activation-codes";
 import { computeGracePeriod } from "@/lib/subscription-state";
+import { auditLogWithRequest } from "@/lib/audit";
 import crypto from "crypto";
 
 /**
@@ -207,6 +208,20 @@ export async function POST(req: NextRequest) {
     });
 
     const daysRemaining = Math.ceil((newEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+    // 🔒 سجّل التفعيل في سجل التدقيق
+    await auditLogWithRequest(req, currentUser, {
+      action: "activate",
+      entityType: "activation_code",
+      entityId: existingCode.id,
+      description: `تفعيل كود اشتراك ${planDef.label} (${verification.durationDays} يوم) — ينتهي ${newEndDate.toLocaleDateString("ar-DZ")}`,
+      metadata: {
+        code: code.substring(0, 14) + "...",
+        plan: verification.plan,
+        durationDays: verification.durationDays,
+        hardwareFingerprint,
+      },
+    });
 
     return NextResponse.json({
       success: true,

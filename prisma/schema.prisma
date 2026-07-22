@@ -372,6 +372,8 @@ model CashierPin {
   updatedAt       DateTime @updatedAt
 
   @@index([clubId])
+  @@index([clubId, active])
+  @@index([active])
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -683,4 +685,25 @@ model SubscriberContract {
   createdAt       DateTime @default(now())
 
   @@index([clubId, subscriberId])
+}
+
+// ═══════════════════════════════════════════════════════════
+// AUDIT LOG (سجل التدقيق — لتتبع الأفعال الحساسة)
+// ═══════════════════════════════════════════════════════════
+model AuditLog {
+  id              String   @id @default(cuid())
+  clubId          String?
+  userId          String?                           // المستخدم الذي قام بالفعل
+  action          String                            // login|logout|create|update|delete|activate|revoke
+  entityType      String                            // subscriber|user|club|code|payment|...
+  entityId        String?                           // معرّف الكيان المتأثر
+  description     String                            // وصف بالعربية
+  ipAddress       String?
+  userAgent       String?
+  metadata        String?                           // JSON string لتفاصيل إضافية
+  createdAt       DateTime @default(now())
+
+  @@index([clubId, createdAt])
+  @@index([userId, createdAt])
+  @@index([action])
 }

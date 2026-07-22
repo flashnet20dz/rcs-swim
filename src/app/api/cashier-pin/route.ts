@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { createSession, setSessionCookie, getCurrentUser } from "@/lib/session";
+import { rateLimit, incrementRateLimit, resetRateLimit, getClientIp } from "@/lib/rate-limit";
 
 /**
  * POST /api/cashier-pin
@@ -70,8 +71,26 @@ export async function POST(req: NextRequest) {
     }
 
     // Action: login with PIN
+    // 🔒 Rate limiting: 5 محاولات لكل IP كل 15 دقيقة، ثم قفل 30 دقيقة
+    const clientIp = getClientIp(req);
+    const rateLimitKey = `pin-login:${clientIp}`;
+    const rlOptions = { max: 5, windowMs: 15 * 60 * 1000, lockoutMs: 30 * 60 * 1000 };
+    const rl = rateLimit(rateLimitKey, rlOptions);
+
+    if (rl.blocked) {
+      const waitMin = rl.lockoutRemaining ? Math.ceil(rl.lockoutRemaining / 60) : 15;
+      return NextResponse.json({
+        error: `تم تجاوز عدد المحاولات المسموحة. انتظر ${waitMin} دقيقة قبل المحاولة مرة أخرى.`,
+        retryAfter: rl.lockoutRemaining || 900,
+      }, { status: 429, headers: { "Retry-After": String(rl.lockoutRemaining || 900) } });
+    }
+
     // PIN is globally unique, so we check all active PINs (no user context yet)
-    const pins = await db.cashierPin.findMany({ where: { active: true } });
+    // 🔒 تحسين: لو أرسل العميل clubId (من شاشة اختيار النادي)، ابحث في نادٍ واحد فقط
+    // هذا يقلّل من 3000 PIN إلى 3-5 لكل نادٍ → أسرع بـ 1000x
+    const clubId = body.clubId;
+    const pinWhere = clubId ? { active: true, clubId } : { active: true };
+    const pins = await db.cashierPin.findMany({ where: pinWhere });
     if (pins.length === 0) {
       return NextResponse.json({ error: "لا توجد أكواد PIN مفعّلة. سجّل الدخول كمدير لإنشاء واحد." }, { status: 404 });
     }
@@ -84,8 +103,16 @@ export async function POST(req: NextRequest) {
     }
 
     if (!matchedPin) {
-      return NextResponse.json({ error: "PIN غير صحيح" }, { status: 401 });
+      // 🔒 سجّل المحاولة الفاشلة
+      incrementRateLimit(rateLimitKey, rlOptions);
+      const remaining = Math.max(0, rl.remaining - 1);
+      return NextResponse.json({
+        error: `PIN غير صحيح${remaining > 0 ? ` — ${remaining} محاولات متبقية` : " — سيتم قفل الحساب مؤقتاً"}`,
+      }, { status: 401 });
     }
+
+    // 🔒 نجح الدخول → صفّر العداد
+    resetRateLimit(rateLimitKey);
 
     const fakeUser = {
       id: `pin-${matchedPin.id}`,

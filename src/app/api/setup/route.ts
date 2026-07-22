@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { getCurrentUser } from "@/lib/session";
 
 /**
  * GET /api/setup
@@ -10,9 +11,31 @@ import { db } from "@/lib/db";
  * Idempotent: uses CREATE TABLE IF NOT EXISTS.
  *
  * After schema creation, also seeds the default admin + default settings.
+ *
+ * 🔒 SECURITY: Protected — requires either:
+ *   1. Authenticated superadmin session, OR
+ *   2. Valid SETUP_SECRET_KEY in Authorization header
+ *   3. OR allow if no users exist yet (first-time bootstrap)
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
   const results: string[] = [];
+
+  // 🔒 Security check
+  const hasUsers = await db.user.count().catch(() => 0);
+  if (hasUsers > 0) {
+    // DB already initialized — require auth
+    const currentUser = await getCurrentUser();
+    const setupKey = process.env.SETUP_SECRET_KEY;
+    const authHeader = req.headers.get("authorization");
+    const keyMatch = setupKey && authHeader === `Bearer ${setupKey}`;
+
+    if (!currentUser || (currentUser.role !== "superadmin" && !keyMatch)) {
+      return NextResponse.json(
+        { error: "غير مصرح — قاعدة البيانات مهيأة بالفعل" },
+        { status: 403 }
+      );
+    }
+  }
 
   try {
     // Test connection

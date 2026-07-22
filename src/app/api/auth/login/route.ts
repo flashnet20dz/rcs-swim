@@ -8,6 +8,8 @@ import {
   cleanupExpiredSessions,
 } from "@/lib/session";
 import { db } from "@/lib/db";
+import { rateLimit, incrementRateLimit, resetRateLimit, getClientIp } from "@/lib/rate-limit";
+import { auditLogWithRequest } from "@/lib/audit";
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,6 +18,19 @@ export async function POST(req: NextRequest) {
 
     if (!email || !password) {
       return NextResponse.json({ error: "البريد وكلمة المرور مطلوبان" }, { status: 400 });
+    }
+
+    // 🔒 Rate limiting: 10 محاولات لكل IP كل 15 دقيقة، ثم قفل 30 دقيقة
+    const clientIp = getClientIp(req);
+    const rateLimitKey = `login:${clientIp}`;
+    const rlOptions = { max: 10, windowMs: 15 * 60 * 1000, lockoutMs: 30 * 60 * 1000 };
+    const rl = rateLimit(rateLimitKey, rlOptions);
+
+    if (rl.blocked) {
+      const waitMin = rl.lockoutRemaining ? Math.ceil(rl.lockoutRemaining / 60) : 15;
+      return NextResponse.json({
+        error: `تم تجاوز عدد محاولات الدخول. انتظر ${waitMin} دقيقة.`,
+      }, { status: 429, headers: { "Retry-After": String(rl.lockoutRemaining || 900) } });
     }
 
     // Self-healing: try to ensure admin + settings exist. If tables don't exist yet
@@ -54,11 +69,27 @@ export async function POST(req: NextRequest) {
 
     const user = await verifyCredentials(email, password);
     if (!user) {
-      return NextResponse.json({ error: "بيانات الدخول غير صحيحة" }, { status: 401 });
+      // 🔒 سجّل المحاولة الفاشلة
+      incrementRateLimit(rateLimitKey, rlOptions);
+      const remaining = Math.max(0, rl.remaining - 1);
+      return NextResponse.json({
+        error: `بيانات الدخول غير صحيحة${remaining > 0 ? ` — ${remaining} محاولات متبقية` : ""}`,
+      }, { status: 401 });
     }
+
+    // 🔒 نجح الدخول → صفّر العداد
+    resetRateLimit(rateLimitKey);
 
     const token = await createSession(user);
     await setSessionCookie(token);
+
+    // 🔒 سجّل الدخول الناجح في سجل التدقيق
+    await auditLogWithRequest(req, user, {
+      action: "login",
+      entityType: "user",
+      entityId: user.id,
+      description: `تسجيل دخول: ${user.name} (${user.email}) — دور: ${user.role}`,
+    });
 
     return NextResponse.json({ user: { id: user.id, email: user.email, name: user.name, role: user.role } });
   } catch (e) {
