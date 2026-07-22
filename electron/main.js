@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-// RCS Club — Electron Main Process (Hybrid: Offline + Online)
+// AquaCore Club Manager — Electron Main Process (Hybrid: Offline + Online)
 // ═══════════════════════════════════════════════════════════
 //
 // يعمل بطريقتين:
@@ -12,6 +12,49 @@
 //   invoke() موجودة فقط في ipcRenderer. لتنفيذ منطق داخل Main
 //   Process، استخرجه إلى دالة مستقلة واستدعِها مباشرة.
 //
+
+// ═══════════════════════════════════════════════════════════
+// إعداد مسار Prisma Query Engine (للنسخة المكتبية المعبأة)
+// ═══════════════════════════════════════════════════════════
+// في Electron المعبأ (production)، الـ binary engine يُستخرج من
+// asar إلى app.asar.unpacked/node_modules/.prisma/client/
+// يجب إخبار Prisa بموقع الـ binary قبل أي require("@prisma/client")
+(function setupPrismaEngine() {
+    const path = require("path");
+    const fs = require("fs");
+
+    // ابحث عن الـ binary engine في عدة مسارات محتملة
+    const appDir = __dirname;
+    const candidates = [
+        // 1) داخل asar.unpacked (الإعداد الافتراضي لـ electron-builder)
+        path.join(appDir, "..", "node_modules", ".prisma", "client"),
+        // 2) داخل standalone
+        path.join(appDir, "..", ".next", "standalone", "node_modules", ".prisma", "client"),
+        // 3) في dev
+        path.join(appDir, "..", "node_modules", ".prisma", "client"),
+    ];
+
+    for (const dir of candidates) {
+        try {
+            if (fs.existsSync(dir)) {
+                // ابحث عن ملف الـ engine (query_engine-windows.dll.node أو مشابه)
+                const files = fs.readdirSync(dir);
+                const engineFile = files.find(f =>
+                    f.startsWith("query_engine-") && (f.endsWith(".dll.node") || f.endsWith(".node"))
+                );
+                if (engineFile) {
+                    const enginePath = path.join(dir, engineFile);
+                    process.env.PRISMA_QUERY_ENGINE_BINARY = enginePath;
+                    console.log("[Prisma] Engine binary:", enginePath);
+                    break;
+                }
+            }
+        } catch (e) {
+            // تجاهل الأخطاء وجرّب المسار التالي
+        }
+    }
+})();
+
 const { app, BrowserWindow, Menu, shell, ipcMain, dialog, Notification } = require("electron");
 const path = require("path");
 const fs = require("fs");

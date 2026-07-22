@@ -1,16 +1,15 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════
-# RCS Club — Build Setup.exe (Production Release)
+# AquaCore Club Manager — Build Setup.exe (Production Release)
 # ═══════════════════════════════════════════════════════════
-set -e
 
 VERSION="1.0.0"
-PRODUCT_NAME="RCS Club"
-APP_EXE="RCS Club.exe"
-SETUP_EXE="RCS Club Setup v${VERSION}.exe"
+PRODUCT_NAME="AquaCore Club Manager"
+APP_EXE="AquaCore Club Manager.exe"
+SETUP_EXE="AquaCore Club Manager Setup ${VERSION}.exe"
 
 echo "╔══════════════════════════════════════════════════════════╗"
-echo "║  RCS Club — Build Setup.exe (Production)                ║"
+echo "║  AquaCore Club Manager — Build Setup.exe                ║"
 echo "║  Version: ${VERSION}                                       ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
@@ -23,10 +22,14 @@ fi
 echo "✅ Dependencies ready"
 echo ""
 
-# ─── Step 2: Generate Prisma client ───
-echo "🔧 Step 2: Generating Prisma client..."
-npx prisma generate
-echo "✅ Prisma client generated"
+# ─── Step 2: Switch to SQLite schema + generate Prisma client ───
+echo "🔧 Step 2: Preparing Prisma for SQLite (desktop)..."
+npm run desktop:prepare
+if [ $? -ne 0 ]; then
+  echo "❌ Prisma prepare failed"
+  exit 1
+fi
+echo "✅ Prisma client generated (SQLite)"
 echo ""
 
 # ─── Step 3: Build Next.js ───
@@ -34,6 +37,8 @@ echo "🏗️  Step 3: Building Next.js..."
 npm run build
 if [ $? -ne 0 ]; then
   echo "❌ Next.js build failed"
+  echo "Restoring schema..."
+  npm run desktop:restore
   exit 1
 fi
 echo "✅ Next.js build successful"
@@ -68,6 +73,8 @@ rm -rf dist/win-unpacked
 npx electron-builder --win --dir
 if [ $? -ne 0 ]; then
   echo "❌ electron-builder failed"
+  echo "Restoring schema..."
+  npm run desktop:restore
   exit 1
 fi
 echo "✅ Windows app built: dist/win-unpacked/${APP_EXE}"
@@ -76,13 +83,11 @@ echo ""
 # ─── Step 7: Build Setup.exe with NSIS ───
 echo "🎯 Step 7: Building Setup.exe with NSIS..."
 
-# البحث عن makensis
 MAKENSIS=""
 if command -v makensis &> /dev/null; then
   MAKENSIS="makensis"
 elif [ -f "/home/z/.cache/electron-builder/nsis-3.0.4.1/nsis-3.0.4.1-1mx3n/linux/makensis" ]; then
   MAKENSIS="/home/z/.cache/electron-builder/nsis-3.0.4.1/nsis-3.0.4.1-1mx3n/linux/makensis"
-  # إعداد LD_PRELOAD لـ Linux
   if [ -f "scripts/nsis_redirect.so" ]; then
     export LD_PRELOAD="$(pwd)/scripts/nsis_redirect.so"
   fi
@@ -93,6 +98,8 @@ if [ -z "$MAKENSIS" ]; then
   echo "❌ makensis not found"
   echo "   On Windows: install NSIS from https://nsis.sourceforge.io"
   echo "   On Linux: use the electron-builder cached version"
+  echo "Restoring schema..."
+  npm run desktop:restore
   exit 1
 fi
 
@@ -100,8 +107,16 @@ echo "  Using: $MAKENSIS"
 "$MAKENSIS" -V2 installer-simple.nsi
 if [ $? -ne 0 ]; then
   echo "❌ NSIS build failed"
+  echo "Restoring schema..."
+  npm run desktop:restore
   exit 1
 fi
+echo ""
+
+# ─── Step 8: Restore PostgreSQL schema ───
+echo "🔄 Step 8: Restoring Prisma for PostgreSQL (web dev)..."
+npm run desktop:restore
+echo "✅ Schema restored"
 echo ""
 
 # ─── Verify ───
@@ -119,7 +134,7 @@ if [ -f "dist/${SETUP_EXE}" ]; then
   echo "║  📂 Path:      dist/${SETUP_EXE}        ║"
   echo "║  📏 Size:      ${SIZE_MB} MB                            ║"
   echo "║  🏷️  Version:   ${VERSION}                                  ║"
-  echo "║  🏢 Publisher:  RCS Club Management System               ║"
+  echo "║  🏢 Publisher:  AquaCore Club Manager                    ║"
   echo "║  🖼️  Icon:       icon.ico (256x256)                       ║"
   echo "║  📦 Type:       NSIS Installer (PE32)                    ║"
   echo "║                                                          ║"

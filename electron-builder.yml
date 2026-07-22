@@ -19,11 +19,15 @@ asar: true
 # تشغيله من داخل أرشيف asar المضغوط. لازم يُستثنى (unpack) لمجلد
 # app.asar.unpacked/ وإلا يفشل التطبيق بخطأ "Cannot find module
 # '.prisma/client/default'" عند أول استخدام لقاعدة البيانات.
+# نستخدم إستراتيجية مزدوجة: asarUnpack + extraResources لضمان التعبئة.
 asarUnpack:
   - "node_modules/@prisma/**/*"
   - "node_modules/.prisma/**/*"
   - ".next/standalone/node_modules/@prisma/**/*"
   - ".next/standalone/node_modules/.prisma/**/*"
+  - "node_modules/@prisma/engines/**/*"
+  - "**/*.dll.node"
+  - "**/*.node"
 
 files:
   # ملفات Electron
@@ -43,8 +47,10 @@ files:
   - "public/**/*"
   # Prisma schema + engine
   - "prisma/schema.prisma"
-  - "node_modules/@prisma/client/**/*"
+  - "prisma/schema.sqlite.prisma"
+  - "node_modules/@prisma/**/*"
   - "node_modules/.prisma/**/*"
+  - "node_modules/@prisma/engines/**/*"
   # package.json (مطلوب في جذر asar)
   - "package.json"
   # next.config (مطلوب لـ standalone server)
