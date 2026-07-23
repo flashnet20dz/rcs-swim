@@ -109,6 +109,7 @@ function startLocalServer() {
             const dbPath = getDatabasePath();
             const env = {
                 ...process.env,
+                ELECTRON_RUN_AS_NODE: "1", // ⚠️ ضروري: بدونه electron.exe يحاول يفتح نفسه كتطبيق واجهة بدل تشغيل server.js كسكربت Node عادي
                 DATABASE_URL: `file:${dbPath}`,
                 DIRECT_URL: `file:${dbPath}`,
                 NEXTAUTH_SECRET: "rcs-club-desktop-secret-2024-offline",
