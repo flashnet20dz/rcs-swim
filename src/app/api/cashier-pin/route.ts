@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
-import { createSession, setSessionCookie, getCurrentUser } from "@/lib/session";
+import { createSession, setSessionCookie, getCurrentUser, setClubHintCookie, getClubHintCookie } from "@/lib/session";
 import { rateLimit, incrementRateLimit, resetRateLimit, getClientIp } from "@/lib/rate-limit";
 
 /**
@@ -85,12 +85,20 @@ export async function POST(req: NextRequest) {
       }, { status: 429, headers: { "Retry-After": String(rl.lockoutRemaining || 900) } });
     }
 
-    // PIN is globally unique, so we check all active PINs (no user context yet)
-    // 🔒 تحسين: لو أرسل العميل clubId (من شاشة اختيار النادي)، ابحث في نادٍ واحد فقط
-    // هذا يقلّل من 3000 PIN إلى 3-5 لكل نادٍ → أسرع بـ 1000x
-    const clubId = body.clubId;
-    const pinWhere = clubId ? { active: true, clubId } : { active: true };
-    const pins = await db.cashierPin.findMany({ where: pinWhere });
+    // 🔒 عزل كامل بين النوادي: نحصر البحث بنادي هذا الجهاز فقط (كوكي
+    // طويل الأمد يُضبط تلقائياً عند أول تسجيل دخول عادي). PIN رقم من 4
+    // خانات فقط (10,000 احتمال) — بدون هذا الحصر، تصادم الأكواد بين
+    // نوادي مختلفة شبه مؤكد رياضياً بعد ~100 نادي، وممكن يسجّل كاشير
+    // نادٍ بحساب نادٍ آخر كلياً. لهذا ما نسمح بفحص شامل غير محصور إطلاقاً،
+    // حتى لو أُرسل clubId بالطلب (لا نثق بقيمة يرسلها العميل لهذا الغرض).
+    const clubHint = await getClubHintCookie();
+    if (!clubHint) {
+      return NextResponse.json(
+        { error: "أول استخدام لهذا الجهاز: سجّل الدخول كمدير مرة واحدة بالبريد وكلمة السر، بعدها كود PIN يشتغل مباشرة." },
+        { status: 428 }
+      );
+    }
+    const pins = await db.cashierPin.findMany({ where: { active: true, clubId: clubHint } });
     if (pins.length === 0) {
       return NextResponse.json({ error: "لا توجد أكواد PIN مفعّلة. سجّل الدخول كمدير لإنشاء واحد." }, { status: 404 });
     }
@@ -125,6 +133,7 @@ export async function POST(req: NextRequest) {
 
     const token = await createSession(fakeUser);
     await setSessionCookie(token);
+    await setClubHintCookie(matchedPin.clubId);
 
     return NextResponse.json({ user: fakeUser });
   } catch (e) {

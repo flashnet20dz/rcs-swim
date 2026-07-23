@@ -121,12 +121,12 @@ export async function verifyCredentials(email: string, password: string): Promis
     if (!ok) return null;
 
     // Check club status for non-superadmin users
+    // ملاحظة: "pending" لا يمنع الدخول — النادي عنده تجربة مجانية سارية
+    // من لحظة التسجيل، ونظام subscription-gate هو من يقرر لاحقاً هل
+    // فترة التجربة/السماح انتهت فعلاً أم لا (وليس حالة الموافقة الإدارية).
     if (user.role !== "superadmin" && user.club) {
-      if (user.club.status === "pending") return null;
       if (user.club.status === "suspended") return null;
       if (user.club.status === "disabled") return null;
-      // Check subscription expiry
-      if (user.club.status === "expired") return null;
     }
 
     return {
@@ -227,6 +227,31 @@ export async function setSessionCookie(token: string) {
 export async function clearSessionCookie() {
   const cookieStore = await cookies();
   cookieStore.delete(SESSION_COOKIE);
+}
+
+/**
+ * "تلميح النادي" — كوكي طويل الأمد (سنة) غير حسّاس، يربط هذا الجهاز/المتصفح
+ * بنادٍ محدد. يُستخدم فقط لتسريع وعزل تسجيل دخول كود الكاشير (PIN) —
+ * بدونه، كود PIN يضطر يفحص كل أكواد كل النوادي بالنظام (بطيء جداً + خطر
+ * تصادم بين نوادي مختلفة، بما أن الأكواد 4 أرقام فقط). هذا الكوكي يُضبط
+ * تلقائياً عند أي تسجيل دخول عادي (بريد/كلمة سر) أو أول نجاح بكود PIN.
+ */
+const CLUB_HINT_COOKIE = "rcs-club-hint";
+
+export async function setClubHintCookie(clubId: string) {
+  const cookieStore = await cookies();
+  cookieStore.set(CLUB_HINT_COOKIE, clubId, {
+    httpOnly: false,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 365 * 24 * 60 * 60,
+  });
+}
+
+export async function getClubHintCookie(): Promise<string | null> {
+  const cookieStore = await cookies();
+  return cookieStore.get(CLUB_HINT_COOKIE)?.value || null;
 }
 
 export async function destroySession(token: string | undefined) {

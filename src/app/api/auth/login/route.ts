@@ -3,6 +3,7 @@ import {
   verifyCredentials,
   createSession,
   setSessionCookie,
+  setClubHintCookie,
   ensureDefaultAdmin,
   ensureDefaultSettings,
   cleanupExpiredSessions,
@@ -82,6 +83,7 @@ export async function POST(req: NextRequest) {
 
     const token = await createSession(user);
     await setSessionCookie(token);
+    if (user.clubId) await setClubHintCookie(user.clubId);
 
     // 🔒 سجّل الدخول الناجح في سجل التدقيق
     await auditLogWithRequest(req, user, {
