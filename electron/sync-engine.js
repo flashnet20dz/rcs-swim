@@ -4,7 +4,21 @@
 // ═══════════════════════════════════════════════════════════
 
 const https = require("https");
-const { PrismaClient } = require("@prisma/client");
+const path = require("path");
+
+// 🔑 استيراد PrismaClient من مجلد electron/prisma-client (نسخة مولّدة محلياً)
+// هذا يتجنب مشكلة "Cannot find module prisma/client/default" التي تحدث
+// عندما لا يُعبَّأ node_modules/.prisma (مجلد مخفي) بشكل صحيح في asar.
+// fallback: @prisma/client (للتطوير المحلي حيث لم يُنسخ بعد)
+let PrismaClient;
+try {
+  // في الإنتاج (مُعبأ): استخدم prisma-client المحلي
+  const clientPath = path.join(__dirname, "prisma-client");
+  PrismaClient = require(clientPath).PrismaClient;
+} catch (e) {
+  // في التطوير: استخدم @prisma/client العادي
+  PrismaClient = require("@prisma/client").PrismaClient;
+}
 
 const prisma = new PrismaClient();
 const CLOUD_BASE = "https://aladine-pool-manager.vercel.app";

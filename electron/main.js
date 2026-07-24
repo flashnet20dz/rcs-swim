@@ -16,16 +16,16 @@
 // ═══════════════════════════════════════════════════════════
 // إعداد مسار Prisma Query Engine (للنسخة المكتبية المعبأة)
 // ═══════════════════════════════════════════════════════════
-// في Electron المعبأ (production)، الـ binary engine يُستخرج من
-// asar إلى app.asar.unpacked/node_modules/.prisma/client/
-// يجب إخبار Prisa بموقع الـ binary قبل أي require("@prisma/client")
+// 🔑 الأولوية لمسار electron/prisma-client (نسخة مولّدة محلياً)
+// هذا يتجنب مشكلة "Cannot find module prisma/client/default" نهائياً.
 (function setupPrismaEngine() {
     const path = require("path");
     const fs = require("fs");
 
-    // ابحث عن الـ binary engine في عدة مسارات محتملة
     const appDir = __dirname;
     const candidates = [
+        // 0) 🔑 الأولوية: electron/prisma-client (نسخة مولّدة محلياً)
+        path.join(appDir, "prisma-client"),
         // 1) داخل asar.unpacked (الإعداد الافتراضي لـ electron-builder)
         path.join(appDir, "..", "node_modules", ".prisma", "client"),
         // 2) داخل standalone
@@ -37,10 +37,11 @@
     for (const dir of candidates) {
         try {
             if (fs.existsSync(dir)) {
-                // ابحث عن ملف الـ engine (query_engine-windows.dll.node أو مشابه)
                 const files = fs.readdirSync(dir);
+                // Linux: libquery_engine-*.so.node | Windows: query_engine-*.dll.node
                 const engineFile = files.find(f =>
-                    f.startsWith("query_engine-") && (f.endsWith(".dll.node") || f.endsWith(".node"))
+                    (f.startsWith("query_engine-") || f.startsWith("libquery_engine-")) &&
+                    (f.endsWith(".node") || f.endsWith(".dll.node") || f.endsWith(".so.node"))
                 );
                 if (engineFile) {
                     const enginePath = path.join(dir, engineFile);
@@ -702,7 +703,13 @@ ipcMain.handle("license:redeem", async (event, code) => {
     // سجّل بـ Outbox المزامنة حتى يُبلَّغ للسحابة عند توفر الإنترنت
     // (يكشف استخدام نفس الكود بجهازين مختلفين لاحقاً)
     try {
-        const { PrismaClient } = require("@prisma/client");
+        // 🔑 استخدم prisma-client المحلي (نسخة مولّدة) بدلاً من @prisma/client
+        let PrismaClient;
+        try {
+            PrismaClient = require(path.join(__dirname, "prisma-client")).PrismaClient;
+        } catch {
+            PrismaClient = require("@prisma/client").PrismaClient;
+        }
         const prisma = new PrismaClient();
         await prisma.syncOutbox.create({
             data: {

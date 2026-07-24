@@ -15,12 +15,11 @@ directories:
 # نستخدم بنية Next.js Standalone: .next/standalone/ يحتوي على كل ما يلزم
 asar: true
 
-# ⚠️ مهم جداً: محرك Prisma (query engine) ملف ثنائي (binary) لا يمكن
-# تشغيله من داخل أرشيف asar المضغوط. لازم يُستثنى (unpack) لمجلد
-# app.asar.unpacked/ وإلا يفشل التطبيق بخطأ "Cannot find module
-# '.prisma/client/default'" عند أول استخدام لقاعدة البيانات.
-# نستخدم إستراتيجية مزدوجة: asarUnpack + extraResources لضمان التعبئة.
+# ⚠️ محرك Prisma (query engine) ملف ثنائي (binary) لا يمكن تشغيله من
+# داخل أرشيف asar. لازم يُستثنى (unpack) لمجلد app.asar.unpacked/.
+# 🔑 الأولوية: electron/prisma-client (نسخة مولّدة محلياً — مضمونة التعبئة)
 asarUnpack:
+  - "electron/prisma-client/**/*"
   - "node_modules/@prisma/**/*"
   - "node_modules/.prisma/**/*"
   - ".next/standalone/node_modules/@prisma/**/*"
@@ -39,6 +38,9 @@ files:
   - "electron/license.js"
   - "electron/sync-engine.js"
   - "electron/activation.html"
+  # 🔑 Prisma Client مولّد محلياً (نسخة SQLite للنسخة المكتبية)
+  # هذا يحل مشكلة "Cannot find module prisma/client/default" نهائياً
+  - "electron/prisma-client/**/*"
   # Next.js Standalone server + dependencies
   - ".next/standalone/**/*"
   # ملفات static (CSS, JS chunks, fonts)

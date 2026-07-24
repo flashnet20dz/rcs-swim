@@ -65,3 +65,4 @@ dist/
 build-electron/
 dist/
 tool-results/
+electron/prisma-client/
