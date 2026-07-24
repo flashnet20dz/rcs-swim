@@ -206,6 +206,25 @@ export default function Home() {
     window.location.href = "/login";
   };
 
+  const fetchAllSubscribers = useCallback(async (params: URLSearchParams) => {
+    // نظام الترقيم بالسيرفر يرجّع 100 بالصفحة افتراضياً (500 حد أقصى) —
+    // نلف على كل الصفحات ونجمعها بمصفوفة واحدة، حتى تبقى تجربة "قائمة
+    // كاملة محمَّلة + بحث فوري بالمتصفح" شغالة بدون تغيير بباقي الواجهة.
+    const all: any[] = [];
+    let page = 1;
+    const MAX_PAGES = 40; // سقف أمان: 40 × 500 = 20,000 سجل، أعلى بكثير من أي نادٍ واقعي
+    while (page <= MAX_PAGES) {
+      params.set("page", String(page));
+      params.set("limit", "500");
+      const res = await fetch(`/api/subscribers?${params.toString()}`);
+      const data = await res.json();
+      all.push(...(data.subscribers || []));
+      if (!data.pagination?.hasMore) break;
+      page++;
+    }
+    return all;
+  }, []);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -215,15 +234,14 @@ export default function Home() {
       if (filterGender) params.set("gender", filterGender);
       if (filterRenewal) params.set("renewalStatus", filterRenewal);
 
-      const [subRes, statsRes, actRes] = await Promise.all([
-        fetch(`/api/subscribers?${params.toString()}`),
+      const [allSubs, statsRes, actRes] = await Promise.all([
+        fetchAllSubscribers(params),
         fetch("/api/stats"),
         fetch("/api/activities"),
       ]);
-      const subData = await subRes.json();
       const statsData = await statsRes.json();
       const actData = await actRes.json();
-      setSubscribers(subData.subscribers || []);
+      setSubscribers(allSubs);
       setStats(statsData);
       setActivities(actData.activities || []);
     } catch {
@@ -231,7 +249,7 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }, [filterPayment, filterType, filterGender, filterRenewal]);
+  }, [filterPayment, filterType, filterGender, filterRenewal, fetchAllSubscribers]);
 
   useEffect(() => {
     if (!sessionUser) return;
