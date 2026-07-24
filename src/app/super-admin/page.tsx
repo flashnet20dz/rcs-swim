@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ActivationCodesPanel } from "@/components/activation-codes-panel";
 import { SuperAdminDashboard } from "@/components/super-admin-dashboard";
+import { SuperAdminControlCenter } from "@/components/super-admin-control-center";
 
 interface Club {
   id: string;
@@ -261,6 +262,9 @@ export default function SuperAdminPage() {
 
         {/* Super Admin Control Dashboard */}
         <SuperAdminDashboard />
+
+        {/* Super Admin Control Center — مركز التحكم الشامل */}
+        <SuperAdminControlCenter />
       </main>
 
       {/* Subscription management modal */}

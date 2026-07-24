@@ -63,6 +63,8 @@ model Club {
   activationCodes ActivationCode[]                  // الأكواد المُفعَّلة لهذا النادي
   clubSettings    ClubSettings?                      // إعدادات النادي (سوبر أدمن)
   uiConfigurations UIConfiguration[]                 // إعدادات الواجهات المخصصة
+  groupMemberships ClubGroupMember[]                 // عضوية في مجموعات النوادي
+  featureAccess   FeatureAccess[]                    // وصول مخصص للميزات
 }
 
 // Club subscription (اشتراك النادي)
@@ -767,4 +769,123 @@ model UITemplate {
   isDefault       Boolean  @default(false)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+// ═══════════════════════════════════════════════════════════
+// SUPER ADMIN CONTROL CENTER — مركز تحكم المنصة الكامل
+// ═══════════════════════════════════════════════════════════
+
+// Feature Flag — ميزة قابلة للتفعيل/التعطيل
+model FeatureFlag {
+  id              String   @id @default(cuid())
+  key             String   @unique                    // subscribers, reports, whatsapp, ...
+  name            String                              // الاسم بالعربية
+  description     String?
+  category        String   @default("module")        // module | feature | integration | permission
+  enabled         Boolean  @default(true)            // مفعّلة افتراضياً؟
+  visible         Boolean  @default(true)            // مرئية؟
+  readOnly        Boolean  @default(false)           // قراءة فقط؟
+  allowEdit       Boolean  @default(true)            // السماح بالتعديل؟
+  allowDelete     Boolean  @default(true)            // السماح بالحذف؟
+  allowPrint      Boolean  @default(true)            // السماح بالطباعة؟
+  allowExport     Boolean  @default(true)            // السماح بالتصدير؟
+  isBeta          Boolean  @default(false)           // ميزة تجريبية؟
+  isPremium       Boolean  @default(false)           // ميزة مدفوعة؟
+  minVersion      String   @default("1.0.0")         // أقل إصدار يدعمها
+  platforms       String   @default("all")           // all|desktop|web|mobile (CSV)
+  countries       String?                             // all|DZ|MA|TN|... (CSV, null=all)
+  plans           String?                             // free|starter|professional|enterprise (CSV, null=all)
+  icon            String?                             // lucide icon name
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  access          FeatureAccess[]
+
+  @@index([category])
+  @@index([enabled])
+  @@index([isPremium])
+}
+
+// Feature Access — وصول مخصص لميزة (عامة/نادٍ/مجموعة)
+model FeatureAccess {
+  id              String   @id @default(cuid())
+  featureId       String
+  feature         FeatureFlag @relation(fields: [featureId], references: [id], onDelete: Cascade)
+  scope           String   @default("ALL_CLUBS")     // ALL_CLUBS | CLUB_SPECIFIC | CLUB_GROUP
+  clubId          String?                             // للنادي المحدد
+  club            Club?    @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  clubGroupId     String?                             // لمجموعة النوادي
+  clubGroup       ClubGroup? @relation(fields: [clubGroupId], references: [id], onDelete: Cascade)
+  // overrides على إعدادات الميزة
+  enabled         Boolean?
+  visible         Boolean?
+  readOnly        Boolean?
+  allowEdit       Boolean?
+  allowDelete     Boolean?
+  allowPrint      Boolean?
+  allowExport     Boolean?
+  updatedById     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([featureId, scope, clubId, clubGroupId])
+  @@index([featureId])
+  @@index([clubId])
+  @@index([clubGroupId])
+}
+
+// Club Group — مجموعة نوادي للتطبيق الجماعي
+model ClubGroup {
+  id              String   @id @default(cuid())
+  name            String   @unique                    // "نوادي الجزائر", "النوادي الخليجية"
+  description     String?
+  color           String   @default("#0f766e")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  members         ClubGroupMember[]
+  featureAccess   FeatureAccess[]
+
+  @@index([name])
+}
+
+model ClubGroupMember {
+  id              String   @id @default(cuid())
+  groupId         String
+  group           ClubGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  clubId          String
+  club            Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  addedAt         DateTime @default(now())
+
+  @@unique([groupId, clubId])
+  @@index([groupId])
+  @@index([clubId])
+}
+
+// Default Club Configuration — إعدادات النادي الجديد الافتراضية
+model DefaultClubConfig {
+  id              String   @id @default(cuid())
+  // ─── Branding ───
+  clubName        String   @default("نادي السباحة")
+  primaryColor    String   @default("#0f766e")
+  secondaryColor  String   @default("#0369a1")
+  logoUrl         String?
+  // ─── Localization ───
+  language        String   @default("ar")
+  currency        String   @default("DZD")
+  currencySymbol  String   @default("دج")
+  timezone        String   @default("Africa/Algiers")
+  calendar        String   @default("gregorian")     // gregorian | hijri
+  // ─── Subscription defaults ───
+  defaultPlan     String   @default("monthly")
+  trialDays       Int      @default(7)
+  // ─── Features ───
+  enabledFeatures String   @default("[]")            // JSON: ["subscribers","attendance",...]
+  // ─── Settings JSON ───
+  settings        String   @default("{}")            // JSON: { printConfig, cardConfig, receiptConfig, ... }
+  updatedAt       DateTime @updatedAt
+  updatedById     String?
+
+  @@index([id])
 }
