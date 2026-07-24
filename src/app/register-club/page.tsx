@@ -116,8 +116,13 @@ export default function RegisterClubPage() {
           <div className="p-8 sm:p-10">
             {/* Title */}
             <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center h-20 w-20 rounded-2xl bg-gradient-to-br from-teal-500/20 to-sky-500/20 border border-white/10 mb-4">
-                <Building2 className="h-9 w-9 text-teal-400" strokeWidth={2} />
+              <div className="inline-flex items-center justify-center h-24 w-24 rounded-2xl bg-white/5 border border-white/10 mb-4 overflow-hidden shadow-lg">
+                <img
+                  src="/images/aquacore-logo.png"
+                  alt="AquaCore"
+                  className="h-full w-full object-contain p-1"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                />
               </div>
               <h1 className="text-xl font-extrabold text-white tracking-tight">تسجيل نادٍ جديد</h1>
               <p className="text-sm text-teal-400/80 mt-1 font-medium">املأ الاستمارة — سيتم مراجعة طلبك</p>

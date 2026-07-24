@@ -102,8 +102,13 @@ export default function PinLoginPage() {
       >
         {/* Logo */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center h-20 w-20 rounded-3xl bg-white/15 backdrop-blur-md border border-white/20 mb-3">
-            <Lock className="h-9 w-9 text-white" />
+          <div className="inline-flex items-center justify-center h-24 w-24 rounded-3xl bg-white/10 backdrop-blur-md border border-white/20 mb-3 overflow-hidden shadow-lg">
+            <img
+              src="/images/aquacore-logo.png"
+              alt="AquaCore"
+              className="h-full w-full object-contain p-1"
+              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+            />
           </div>
           <h1 className="text-xl font-extrabold text-white">دخول الكاشير السريع</h1>
           <p className="text-xs text-white/70 mt-1">أدخل 4 أرقام للدخول</p>

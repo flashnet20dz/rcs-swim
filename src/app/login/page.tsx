@@ -119,8 +119,17 @@ function LoginForm() {
           <div className="p-8 sm:p-10">
             {/* Logo + title */}
             <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center h-20 w-20 rounded-2xl bg-gradient-to-br from-teal-500/20 to-sky-500/20 border border-white/10 mb-4">
-                <Waves className="h-9 w-9 text-teal-400" strokeWidth={2.5} />
+              <div className="inline-flex items-center justify-center h-24 w-24 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 mb-4 overflow-hidden shadow-lg">
+                <img
+                  src="/images/aquacore-logo.png"
+                  alt="AquaCore Club Manager"
+                  className="h-full w-full object-contain p-1"
+                  onError={(e) => {
+                    // fallback للأيقونة إن فشل تحميل الشعار
+                    const t = e.currentTarget as HTMLImageElement;
+                    t.style.display = "none";
+                  }}
+                />
               </div>
               <h1 className="text-xl font-extrabold text-white tracking-tight">
                 AquaCore Club Manager
