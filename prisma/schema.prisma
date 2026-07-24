@@ -61,6 +61,8 @@ model Club {
   contracts       EmploymentContract[]
   contractTemplates ContractTemplate[]
   activationCodes ActivationCode[]                  // الأكواد المُفعَّلة لهذا النادي
+  clubSettings    ClubSettings?                      // إعدادات النادي (سوبر أدمن)
+  uiConfigurations UIConfiguration[]                 // إعدادات الواجهات المخصصة
 }
 
 // Club subscription (اشتراك النادي)
@@ -706,4 +708,63 @@ model AuditLog {
   @@index([clubId, createdAt])
   @@index([userId, createdAt])
   @@index([action])
+}
+
+// ═══════════════════════════════════════════════════════════
+// SUPER ADMIN SYSTEM — تحكم شامل في الواجهات والإعدادات
+// ═══════════════════════════════════════════════════════════
+
+// إعدادات كل نادي (يتحكم بها السوبر أدمن)
+model ClubSettings {
+  id              String   @id @default(cuid())
+  clubId          String   @unique
+  club            Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  // إعدادات عامة
+  defaultLanguage String   @default("ar")
+  defaultCurrency String   @default("DZD")
+  subscriptionModel String @default("monthly")
+  emailNotifications Boolean @default(true)
+  // ألوان الواجهة
+  primaryColor    String   @default("#0f766e")
+  secondaryColor  String   @default("#0369a1")
+  // ميزات
+  features        String?  // JSON: { whatsapp: true, qr: true, ... }
+  // القالب المطبّق
+  appliedTemplate String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([clubId])
+}
+
+// إعدادات الواجهات (عامة لكل النوادي أو محددة لنادي)
+model UIConfiguration {
+  id              String   @id @default(cuid())
+  interfaceKey    String                            // مثال: "dashboard", "subscribers", "attendance"
+  interfaceName   String                            // الاسم المعروض بالعربية
+  scope           String   @default("ALL_CLUBS")    // ALL_CLUBS | CLUB_SPECIFIC
+  clubId          String?                           // null للنطاق العام
+  club            Club?     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  isVisible       Boolean  @default(true)
+  settings        String?  // JSON للإعدادات المخصصة
+  updatedById     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([interfaceKey, clubId])
+  @@index([scope])
+  @@index([clubId])
+  @@index([isVisible])
+}
+
+// قوالب الواجهات المعرفة مسبقاً
+model UITemplate {
+  id              String   @id @default(cuid())
+  name            String   @unique                  // starter | professional | basic
+  displayName     String                            // الاسم المعروض
+  description     String?
+  config          String   // JSON: { interfaces: [...], settings: {...} }
+  isDefault       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }

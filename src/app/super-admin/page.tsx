@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { ActivationCodesPanel } from "@/components/activation-codes-panel";
+import { SuperAdminDashboard } from "@/components/super-admin-dashboard";
 
 interface Club {
   id: string;
@@ -257,6 +258,9 @@ export default function SuperAdminPage() {
             </div>
           )}
         </div>
+
+        {/* Super Admin Control Dashboard */}
+        <SuperAdminDashboard />
       </main>
 
       {/* Subscription management modal */}
